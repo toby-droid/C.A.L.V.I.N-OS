@@ -1,0 +1,2275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>C.A.L.V.I.N. OS - Windows 36 Edition</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        amberGlow: '#ff8800',
+                        amberDim: '#9e5100',
+                        amberDark: '#140600',
+                        winGray: '#1e1105',
+                        winBorderLight: '#ffaa44',
+                        winBorderDark: '#663300',
+                    },
+                    fontFamily: {
+                        mono: ['Courier New', 'Courier', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Retro CRT Shader Effects */
+        :root {
+            --glow: #ff8800;
+            --dim: #9e5100;
+            --dark: #140600;
+            --gray-3d: #231206;
+        }
+
+        body {
+            background-color: #060200;
+            color: var(--glow);
+            text-shadow: 0 0 5px rgba(255, 136, 0, 0.5);
+            overflow: hidden;
+            height: 100vh;
+            width: 100vw;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        /* Ambient scanline and glass curve mask */
+        .crt-frame {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 20px;
+            box-sizing: border-box;
+            background: radial-gradient(circle at center, #170700 0%, #050100 100%);
+        }
+
+        .crt-frame::before {
+            content: " ";
+            display: block;
+            position: absolute;
+            top: 0; left: 0; bottom: 0; right: 0;
+            background: linear-gradient(rgba(18, 10, 0, 0) 50%, rgba(0, 0, 0, 0.4) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.04), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.04));
+            z-index: 1000;
+            background-size: 100% 4px, 4px 100%;
+            pointer-events: none;
+        }
+
+        /* Glass reflection overlay */
+        .crt-glass {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: radial-gradient(circle at 50% 15%, rgba(255, 136, 0, 0.06) 0%, rgba(0,0,0,0) 70%);
+            pointer-events: none;
+            z-index: 999;
+        }
+
+        /* Scanline scrolling overlay */
+        @keyframes scanline {
+            0% { transform: translateY(-100%); }
+            100% { transform: translateY(100%); }
+        }
+        .scrolling-scanline {
+            position: absolute;
+            top: 0; left: 0; right: 0; height: 8px;
+            background: rgba(255, 136, 0, 0.04);
+            opacity: 0.8;
+            pointer-events: none;
+            z-index: 1001;
+            animation: scanline 10s linear infinite;
+        }
+
+        /* Screen flicker */
+        @keyframes flicker {
+            0% { opacity: 0.985; }
+            50% { opacity: 0.97; }
+            100% { opacity: 0.99; }
+        }
+        .flicker-active {
+            animation: flicker 0.15s infinite;
+        }
+
+        /* Classic Windows 3.x 3D Bevels (In Amber style) */
+        .win36-bevel-out {
+            border: 3px solid;
+            border-top-color: var(--glow);
+            border-left-color: var(--glow);
+            border-right-color: var(--dim);
+            border-bottom-color: var(--dim);
+            background-color: var(--gray-3d);
+        }
+
+        .win36-bevel-in {
+            border: 3px solid;
+            border-top-color: var(--dark);
+            border-left-color: var(--dark);
+            border-right-color: var(--glow);
+            border-bottom-color: var(--glow);
+            background-color: #0c0400;
+        }
+
+        .win36-button {
+            border: 2px solid;
+            border-top-color: var(--glow);
+            border-left-color: var(--glow);
+            border-right-color: #5a2c00;
+            border-bottom-color: #5a2c00;
+            background-color: #2c1606;
+            cursor: pointer;
+            transition: all 0.1s ease;
+        }
+
+        .win36-button:active {
+            border-top-color: #5a2c00;
+            border-left-color: #5a2c00;
+            border-right-color: var(--glow);
+            border-bottom-color: var(--glow);
+            padding-top: 5px;
+            padding-left: 5px;
+        }
+
+        .win36-window-border {
+            border: 4px solid var(--dim);
+            box-shadow: 4px 4px 0px rgba(0, 0, 0, 0.8);
+        }
+
+        /* Grid lines background layer */
+        .blueprint-grid {
+            background-size: 30px 30px;
+            background-image: 
+                linear-gradient(to right, rgba(255, 136, 0, 0.015) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(255, 136, 0, 0.015) 1px, transparent 1px);
+        }
+
+        /* Draggable App Icons */
+        .app-item {
+            touch-action: none;
+            user-select: none;
+        }
+        .app-dragging {
+            opacity: 0.5;
+            transform: scale(1.05);
+            z-index: 50;
+        }
+
+        /* Custom scrollbars */
+        ::-webkit-scrollbar {
+            width: 14px;
+            height: 14px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #140600;
+            border: 1px solid var(--dim);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #2c1606;
+            border: 2px solid;
+            border-top-color: var(--glow);
+            border-left-color: var(--glow);
+            border-right-color: var(--dim);
+            border-bottom-color: var(--dim);
+        }
+
+        /* Active highlight tab styles */
+        .settings-tab-active {
+            background-color: var(--glow);
+            color: #000000;
+            border-bottom-color: transparent;
+        }
+    </style>
+</head>
+<body class="blueprint-grid select-none overflow-hidden">
+
+    <!-- CRT Visual Filters -->
+    <div class="crt-glass"></div>
+    <div class="scrolling-scanline"></div>
+
+    <div class="crt-frame flicker-active" id="win36-root-frame">
+
+        <!-- ================= PASSWORD BOOT SCREEN ================= -->
+        <div id="boot-lock-screen" class="fixed inset-0 bg-[#060200] z-[9999] flex flex-col items-center justify-center p-6">
+            <div class="w-full max-w-[500px] win36-bevel-out win36-window-border p-6 flex flex-col space-y-6 text-center">
+                <!-- Lock Header Bar -->
+                <div class="bg-amberDim p-1.5 text-black font-bold text-xs tracking-widest uppercase">
+                    [- -] SECURITY ACCESS SCREEN [- -]
+                </div>
+                
+                <div class="space-y-2">
+                    <pre class="text-[5px] sm:text-[7px] leading-none text-amberGlow font-bold animate-pulse">
+ ██████  █████  ██      ██    ██ ██ ███    ██ 
+██      ██   ██ ██      ██    ██ ██ ████   ██ 
+██      ███████ ██      ██    ██ ██ ██ ██  ██ 
+██      ██   ██ ██       ██  ██  ██ ██  ██ ██ 
+ ██████ ██   ██ ███████   ████   ██ ██   ████ 
+                    </pre>
+                    <p class="text-[10px] text-amberDim tracking-wider">COGNITIVE ARTIFICIAL LIFE VECTOR INTELLIGENCE NETWORK</p>
+                </div>
+
+                <div class="win36-bevel-in p-4 space-y-4">
+                    <div class="text-left text-xs space-y-1">
+                        <p class="text-amberGlow font-bold">[*] MAIN STORAGE ENCRYPTED</p>
+                        <p class="text-amberDim text-[11px]">System passcode verification required to release CPU runtime.</p>
+                    </div>
+
+                    <div class="flex flex-col space-y-2">
+                        <label class="text-[10px] text-amberDim text-left uppercase">Input Master Decryption Key:</label>
+                        <div class="relative flex items-center">
+                            <input 
+                                type="password" 
+                                id="decryption-password-field" 
+                                class="w-full bg-black border-2 border-amberDim/50 p-2 text-amberGlow font-bold text-center tracking-widest focus:outline-none focus:border-amberGlow uppercase text-sm"
+                                placeholder="******"
+                                autocomplete="off"
+                            >
+                        </div>
+                    </div>
+                    
+                    <button onclick="attemptSystemUnlock()" class="w-full py-2.5 font-bold text-xs uppercase win36-button text-amberGlow">
+                        [ DECRYPT AND INITIALIZE ]
+                    </button>
+                </div>
+
+                <div class="text-[9px] text-amberDim">
+                    Hint: Default key is <span class="text-amberGlow font-bold">CALVIN</span> (Can be customized inside OS settings)
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= TOP DESKTOP HEADER BAR ================= -->
+        <header class="flex justify-between items-center border-b-2 border-amberDim/40 pb-2.5 z-10">
+            <div class="flex items-center gap-3">
+                <div class="w-3 h-3 bg-amberGlow border border-black shadow-[0_0_8px_#ff8800] animate-pulse"></div>
+                <div>
+                    <h1 class="text-sm md:text-base font-bold tracking-widest uppercase text-amberGlow" id="system-os-name-lbl">C.A.L.V.I.N. OS :: WORKSTATION 36</h1>
+                    <p class="text-[9px] text-amberDim uppercase tracking-wider">KERNEL LAYER SECURE :: MAIN DESKTOP CONSOLE</p>
+                </div>
+            </div>
+            
+            <div class="flex items-center gap-3">
+                <button onclick="toggleSystemAudio()" class="text-[10px] win36-button px-3 py-1 font-bold text-amberGlow">
+                    [ SPKR: <span id="audio-status-label">MUTED</span> ]
+                </button>
+                <button onclick="toggleGlobalFullscreen()" class="text-[10px] win36-button px-3 py-1 font-bold text-amberGlow">
+                    [ FULLSCREEN ]
+                </button>
+                <button onclick="launchSettingsApp()" class="text-[10px] bg-amberGlow text-black font-bold px-3 py-1 hover:bg-white hover:text-black transition-all">
+                    [ CALIBRATE C.A.L.V.I.N. ]
+                </button>
+                <button onclick="lockMainSystem()" class="text-[10px] win36-button px-2.5 py-1 text-red-500 hover:text-white font-bold">
+                    [ LOCK ]
+                </button>
+            </div>
+        </header>
+
+        <!-- ================= MAIN DESKTOP CANVAS ================= -->
+        <main class="flex-1 w-full flex items-stretch justify-between py-4 gap-6 relative z-10 overflow-hidden">
+            
+            <!-- LEFT: 4x4 ICON GRID (Program Groups Style) -->
+            <div class="w-full max-w-[390px] flex flex-col justify-between">
+                <div class="win36-bevel-out win36-window-border p-3.5 flex flex-col h-full">
+                    <!-- Program Window Header -->
+                    <div class="bg-amberDim p-1 mb-3 text-black font-bold text-[10px] tracking-widest uppercase text-center flex justify-between items-center">
+                        <span>[+] PROGRAM MANAGER</span>
+                        <span class="text-[9px] px-1 border border-black leading-none">_</span>
+                    </div>
+
+                    <div class="grid grid-cols-4 grid-rows-4 gap-2 flex-1" id="win36-icon-grid">
+                        <!-- Rendered program items dynamically -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- RIGHT: RETRO TERMINAL LOGS & ART DISPLAY -->
+            <div class="hidden md:flex flex-col flex-grow justify-between items-stretch win36-bevel-out win36-window-border p-4 relative overflow-hidden bg-[#0c0400]">
+                
+                <!-- Windows System Title Panel -->
+                <div class="bg-amberDim text-black font-bold text-[10px] p-1.5 tracking-wider uppercase text-center flex justify-between items-center mb-3">
+                    <span>[*] SYSTEM CORE OVERVIEW</span>
+                    <span class="text-[9px] px-1 border border-black leading-none">X</span>
+                </div>
+
+                <!-- Custom ASCII Terminal Graphics Area -->
+                <div class="flex-1 flex flex-col items-center justify-center text-center py-2 relative select-none">
+                    <pre class="text-[6px] lg:text-[8px] leading-[1.05] text-amberGlow font-bold cursor-default select-none animate-pulse" id="mainframe-ascii-art">
+ ██████  █████  ██      ██    ██ ██ ███    ██ 
+██      ██   ██ ██      ██    ██ ██ ████   ██ 
+██      ███████ ██      ██    ██ ██ ██ ██  ██ 
+██      ██   ██ ██       ██  ██  ██ ██  ██ ██ 
+ ██████ ██   ██ ███████   ████   ██ ██   ████ 
+                    </pre>
+                    <div class="mt-4 border-t border-dashed border-amberDim/30 pt-2 w-full max-w-[360px]">
+                        <p class="text-[10px] font-bold text-amberGlow uppercase tracking-widest" id="sub-title-ascii-tag">AGRAJAG SYSTEMS ARCHITECTURE v14.36</p>
+                        <p class="text-[8px] text-amberDim" id="sub-meta-data-line">DISTRO: WIN_36_CALVIN  ::  CODE: CORE_SYSTEM_REVISION</p>
+                    </div>
+                </div>
+
+                <!-- System Logs Logger Ticker -->
+                <div class="h-32 border-t border-amberDim/30 pt-2.5 flex flex-col justify-between">
+                    <p class="text-[9px] text-amberDim mb-1 uppercase tracking-widest">[+] Active Thread Logging Feed</p>
+                    <div id="win36-system-logs" class="flex-grow overflow-y-auto text-[10px] text-amberDim/90 space-y-1 pr-2">
+                        <div>[>] Windows 36 kernel initialized... STATE_OK</div>
+                        <div>[>] Secure C.A.L.V.I.N. logic core decrypted... STATUS_READY</div>
+                        <div>[>] Standing by for program directives...</div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- ================= BOTTOM TASKBAR CONTROLS ================= -->
+        <footer class="w-full flex flex-col lg:flex-row gap-6 items-stretch pt-3 border-t-2 border-amberDim/40 z-10">
+            
+            <!-- Long Console search bar -->
+            <div class="flex-1 flex flex-col gap-1">
+                <span class="text-[9px] text-amberDim uppercase tracking-widest">[>] Windows 36 command path console execution</span>
+                <div class="relative w-full h-11 win36-bevel-in flex items-center p-0.5">
+                    <form id="win36-command-form" onsubmit="handleConsoleCommandSubmit(event)" class="w-full h-full flex">
+                        <span class="text-amberGlow px-3 font-bold text-sm flex items-center">CALVIN&gt;</span>
+                        <input 
+                            type="text" 
+                            id="win36-command-input" 
+                            placeholder="Type command (e.g. HELP, EXPLORE, CHAT, SYS)..." 
+                            class="flex-1 h-full bg-transparent border-none text-amberGlow font-bold uppercase placeholder-amberDim/60 px-1 focus:outline-none text-xs tracking-wider"
+                            autocomplete="off"
+                        >
+                        <button type="submit" class="win36-button text-amberGlow px-5 font-bold text-xs uppercase">
+                            [ RUN ]
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Micro Quick Link Buttons (Purple, White, Red replacements with built-in app windows) -->
+            <div class="flex flex-col gap-1 min-w-[240px]">
+                <span class="text-[9px] text-amberDim uppercase tracking-widest">Macro Shortcut Registry</span>
+                <div class="flex gap-2.5 h-11">
+                    <!-- Purple Link -->
+                    <button onclick="launchQuickLinkInApp('purple')" id="shortcut-purple-btn" class="flex-1 bg-purple-950/20 border border-purple-500 text-purple-400 font-bold text-xs hover:bg-purple-500 hover:text-white transition-all flex items-center justify-center">
+                        <span id="label-sh-purple">P1</span>
+                    </button>
+                    <!-- White Link -->
+                    <button onclick="launchQuickLinkInApp('white')" id="shortcut-white-btn" class="flex-1 bg-zinc-900/30 border border-zinc-200 text-zinc-100 font-bold text-xs hover:bg-zinc-200 hover:text-black transition-all flex items-center justify-center">
+                        <span id="label-sh-white">W2</span>
+                    </button>
+                    <!-- Red Link -->
+                    <button onclick="launchQuickLinkInApp('red')" id="shortcut-red-btn" class="flex-1 bg-red-950/20 border border-red-500 text-red-400 font-bold text-xs hover:bg-red-500 hover:text-white transition-all flex items-center justify-center">
+                        <span id="label-sh-red">R3</span>
+                    </button>
+                    <!-- Settings Trigger Button -->
+                    <button onclick="launchSettingsApp()" title="Calibration Setup Panel" class="w-11 win36-button text-amberGlow font-bold text-sm flex items-center justify-center">
+                        [*]
+                    </button>
+                </div>
+            </div>
+
+        </footer>
+
+    </div>
+
+    <!-- WINDOW PORTAL CONTAINER -->
+    <div id="desktop-window-workspace" class="absolute inset-0 pointer-events-none z-30"></div>
+
+    <!-- MAIN OS LOGIC SCRIPT -->
+    <script>
+        // WEB AUDIO SYSTEM FOR RETRO CHIP MODULATION
+        let osAudioCtx = null;
+        let isAudioOn = false;
+        let powerHumOsc = null;
+
+        function initOsAudio() {
+            if (!osAudioCtx) {
+                osAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+        }
+
+        function playRetroClick(frequency = 550, duration = 0.04, type = "triangle", volume = 0.05) {
+            if (!isAudioOn) return;
+            initOsAudio();
+            try {
+                const osc = osAudioCtx.createOscillator();
+                const gain = osAudioCtx.createGain();
+                
+                osc.type = type;
+                osc.frequency.setValueAtTime(frequency, osAudioCtx.currentTime);
+                
+                gain.gain.setValueAtTime(volume, osAudioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, osAudioCtx.currentTime + duration);
+                
+                osc.connect(gain);
+                gain.connect(osAudioCtx.destination);
+                osc.start();
+                osc.stop(osAudioCtx.currentTime + duration);
+            } catch (e) {}
+        }
+
+        // ACCESS SOUND UNLOCKED
+        function playAccessUnlockedSound() {
+            if (!isAudioOn) return;
+            initOsAudio();
+            try {
+                const now = osAudioCtx.currentTime;
+                [261.63, 329.63, 392.00, 523.25, 659.25, 783.99].forEach((freq, index) => {
+                    const osc = osAudioCtx.createOscillator();
+                    const gain = osAudioCtx.createGain();
+                    osc.frequency.setValueAtTime(freq, now + (index * 0.05));
+                    gain.gain.setValueAtTime(0.02, now + (index * 0.05));
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + (index * 0.05) + 0.5);
+                    osc.connect(gain);
+                    gain.connect(osAudioCtx.destination);
+                    osc.start(now + (index * 0.05));
+                    osc.stop(now + (index * 0.05) + 0.5);
+                });
+            } catch (e) {}
+        }
+
+        function playErrorBeep() {
+            if (!isAudioOn) return;
+            initOsAudio();
+            try {
+                playRetroClick(150, 0.15, "sawtooth", 0.08);
+                setTimeout(() => playRetroClick(150, 0.15, "sawtooth", 0.08), 80);
+            } catch(e){}
+        }
+
+        function toggleSystemAudio() {
+            isAudioOn = !isAudioOn;
+            const statusLbl = document.getElementById("audio-status-label");
+            if (isAudioOn) {
+                statusLbl.textContent = "ACTIVE";
+                initOsAudio();
+                startPowerHum();
+                playAccessUnlockedSound();
+            } else {
+                statusLbl.textContent = "MUTED";
+                stopPowerHum();
+            }
+        }
+
+        function startPowerHum() {
+            try {
+                if (powerHumOsc) return;
+                powerHumOsc = osAudioCtx.createOscillator();
+                const gain = osAudioCtx.createGain();
+                powerHumOsc.type = "sawtooth";
+                powerHumOsc.frequency.setValueAtTime(50, osAudioCtx.currentTime); // Standard power humming
+                
+                const filter = osAudioCtx.createBiquadFilter();
+                filter.type = "lowpass";
+                filter.frequency.setValueAtTime(80, osAudioCtx.currentTime);
+
+                gain.gain.setValueAtTime(0.003, osAudioCtx.currentTime);
+
+                powerHumOsc.connect(filter);
+                filter.connect(gain);
+                gain.connect(osAudioCtx.destination);
+                powerHumOsc.start();
+            } catch (e) {}
+        }
+
+        function stopPowerHum() {
+            if (powerHumOsc) {
+                try {
+                    powerHumOsc.stop();
+                } catch (e) {}
+                powerHumOsc = null;
+            }
+        }
+
+        // COGNITIVE MASTER SYSTEM DATABASE SCHEMA
+        const FACTORY_DATABASE = {
+            metadata: {
+                sysTitle: "C.A.L.V.I.N. OS :: COGNITION WORKSPACE",
+                asciiLabel: "C.A.L.V.I.N. SYSTEMS CORE v14.36",
+                asciiTagline: "DISTRO: WIN_36_CALVIN  ::  CODE: CORE_SYSTEM_REVISION",
+                crtActive: "on",
+                searchAction: "local",
+                lockPasscode: "CALVIN",
+                grammarShieldActive: "on",
+                asciiGraphic: `  ██████  █████  ██      ██    ██ ██ ███    ██ \n ██      ██   ██ ██      ██    ██ ██ ████   ██ \n ██      ███████ ██      ██    ██ ██ ██ ██  ██ \n ██      ██   ██ ██       ██  ██  ██ ██  ██ ██ \n  ██████ ██   ██ ███████   ████   ██ ██   ████ `
+            },
+            quickLinks: {
+                purple: { label: "GITHUB_DEV", path: "https://wikipedia.org", content: "Development pipeline active. In-app frame security protocols validated." },
+                white: { label: "COGNITIVE", path: "https://archive.org", content: "Artificial consciousness sub-routine telemetry reports nominal link parameters." },
+                red: { label: "AI_CORE", path: "https://duckduckgo.com", content: "Direct generative sandbox connected inside active viewport." }
+            },
+            files: [
+                { path: "C/README.TXT", body: "WELCOME TO C.A.L.V.I.N. WINDOWS 36 WORKSPACE.\n============================================\nThis operating system provides fully sandboxed\ntasks, absolute file directory control, and local\nURL frame rendering interfaces.\n\nTo manage layout programs, click [CALIBRATE C.A.L.V.I.N.]" },
+                { path: "C/SYS_INFO.LOG", body: "C.A.L.V.I.N. DECRYPTION VERDICT:\n- Node clusters: decrypted\n- Access validation: Administrator\n- Dynamic iframe sandboxing: enabled" },
+                { path: "C/MEMO_01.TXT", body: "Remember to configure your master lock screen credentials\ninside the settings calibration drawer to prevent unauthorised access." }
+            ],
+            apps: [
+                { id: 1, label: "AI CONSULTANT", action: "chat", color: "orange", slot: 0 },
+                { id: 2, label: "FILE MANAGER", action: "explorer", color: "orange", slot: 1 },
+                { id: 3, label: "NOTEPAD", action: "notepad", color: "orange", slot: 2 },
+                { id: 4, label: "COSMOS MATRIX", action: "matrix", color: "orange", slot: 3 },
+                { id: 5, label: "CHIP TUNER", action: "synth", color: "orange", slot: 4 },
+                { id: 6, label: "VECTOR CANVAS", action: "paint", color: "orange", slot: 5 },
+                { id: 7, label: "DIAGNOSTICS", action: "diagnostics", color: "orange", slot: 6 },
+                { id: 8, label: "WEB BROWSER", action: "browser", color: "orange", slot: 7 },
+                { id: 9, label: "GRAMMAR SHIELD", action: "grammar", color: "orange", slot: 8 },
+                { id: 10, label: "EMPTY_SLOT_10", action: "disabled", color: "orange", slot: 9 },
+                { id: 11, label: "EMPTY_SLOT_11", action: "disabled", color: "orange", slot: 10 },
+                { id: 12, label: "EMPTY_SLOT_12", action: "disabled", color: "orange", slot: 11 },
+                { id: 13, label: "EMPTY_SLOT_13", action: "disabled", color: "orange", slot: 12 },
+                { id: 14, label: "EMPTY_SLOT_14", action: "disabled", color: "orange", slot: 13 },
+                { id: 15, label: "EMPTY_SLOT_15", action: "disabled", color: "orange", slot: 14 },
+                { id: 16, label: "SETTINGS", action: "settings", color: "orange", slot: 15 }
+            ]
+        };
+
+        let currentDb = JSON.parse(JSON.stringify(FACTORY_DATABASE));
+
+        // AUTOMATIC RETRO GRAMMAR SHIELD DICTIONARY
+        const GRAMMAR_RULES = {
+            "automaticly": "automatically",
+            "gramer": "grammar",
+            "resaults": "results",
+            "itl": "it'll",
+            "dont": "don't",
+            "cant": "can't",
+            "teh": "the",
+            "recieve": "receive",
+            "seperate": "separate",
+            "wich": "which",
+            "ther": "there",
+            "speling": "spelling"
+        };
+
+        // Grammar Auto-correction logic
+        function runGrammarShieldCorrector(text) {
+            if (currentDb.metadata.grammarShieldActive !== "on") return text;
+            let words = text.split(/\b/);
+            let corrected = false;
+            for (let i = 0; i < words.length; i++) {
+                let lower = words[i].toLowerCase();
+                if (GRAMMAR_RULES[lower]) {
+                    // Match casing
+                    if (words[i] === words[i].toUpperCase()) {
+                        words[i] = GRAMMAR_RULES[lower].toUpperCase();
+                    } else if (words[i][0] === words[i][0].toUpperCase() && words[i].length > 1) {
+                        words[i] = GRAMMAR_RULES[lower][0].toUpperCase() + GRAMMAR_RULES[lower].slice(1);
+                    } else {
+                        words[i] = GRAMMAR_RULES[lower];
+                    }
+                    corrected = true;
+                }
+            }
+            return { text: words.join(""), corrected: corrected };
+        }
+
+        // Live input autocorrect helper
+        function setupLiveAutocorrect(inputId) {
+            const input = document.getElementById(inputId);
+            if (!input) return;
+            input.addEventListener("blur", () => {
+                const res = runGrammarShieldCorrector(input.value);
+                if (res.corrected) {
+                    input.value = res.text;
+                    appendOsLog(`[>] Grammar Shield auto-corrected input fields.`);
+                }
+            });
+        }
+
+        // STORAGE MANAGEMENT LOGIC
+        function loadStorageData() {
+            const saved = localStorage.getItem("calvin_os_mainframe_database");
+            if (saved) {
+                try {
+                    currentDb = JSON.parse(saved);
+                    if (!currentDb.apps) currentDb = JSON.parse(JSON.stringify(FACTORY_DATABASE));
+                } catch(e) {
+                    currentDb = JSON.parse(JSON.stringify(FACTORY_DATABASE));
+                }
+            }
+            applyConfigToInterface();
+        }
+
+        function saveStorageData() {
+            localStorage.setItem("calvin_os_mainframe_database", JSON.stringify(currentDb));
+            applyConfigToInterface();
+        }
+
+        // BIND PERSISTENT SYSTEM CHANGES TO DOM
+        function applyConfigToInterface() {
+            document.getElementById("system-os-name-lbl").textContent = currentDb.metadata.sysTitle;
+            document.getElementById("mainframe-ascii-art").textContent = currentDb.metadata.asciiGraphic;
+            document.getElementById("sub-title-ascii-tag").textContent = currentDb.metadata.asciiLabel;
+            document.getElementById("sub-meta-data-line").textContent = currentDb.metadata.asciiTagline;
+
+            // CRT Scanline flicker switcher
+            const mainFrame = document.getElementById("win36-root-frame");
+            if (currentDb.metadata.crtActive === "on") {
+                mainFrame.classList.add("flicker-active");
+            } else {
+                mainFrame.classList.remove("flicker-active");
+            }
+
+            // Quick launch bottom tags
+            document.getElementById("label-sh-purple").textContent = currentDb.quickLinks.purple.label;
+            document.getElementById("label-sh-white").textContent = currentDb.quickLinks.white.label;
+            document.getElementById("label-sh-red").textContent = currentDb.quickLinks.red.label;
+
+            // Handle console command line prompt helper
+            const consoleInput = document.getElementById("win36-command-input");
+            if (currentDb.metadata.searchAction === "local") {
+                consoleInput.placeholder = "Type command (e.g. HELP, EXPLORE, CHAT, SYS)...";
+            } else {
+                consoleInput.placeholder = "Type web search directive query...";
+            }
+
+            renderProgramIconGrid();
+            setupLiveAutocorrect("win36-command-input");
+        }
+
+        // STYLIZED WINDOWS 3.X VECTOR ICON DESIGNS
+        const VECTOR_GLYPHS = {
+            chat: `<svg class="w-7 h-7 text-amberGlow" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"/></svg>`,
+            explorer: `<svg class="w-7 h-7 text-amberGlow" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>`,
+            notepad: `<svg class="w-7 h-7 text-amberGlow" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>`,
+            matrix: `<svg class="w-7 h-7 text-amberGlow" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 9l4-4 4 4m0 6l-4 4-4-4"/></svg>`,
+            synth: `<svg class="w-7 h-7 text-amberGlow" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"/></svg>`,
+            paint: `<svg class="w-7 h-7 text-amberGlow" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>`,
+            diagnostics: `<svg class="w-7 h-7 text-amberGlow" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>`,
+            browser: `<svg class="w-7 h-7 text-amberGlow" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"/></svg>`,
+            grammar: `<svg class="w-7 h-7 text-amberGlow" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>`,
+            settings: `<svg class="w-7 h-7 text-amberGlow" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/></svg>`,
+            disabled: `<svg class="w-7 h-7 text-amberDim/30" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>`
+        };
+
+        // RENDER 4X4 GRID PROGRAM MANAGER DOCK
+        function renderProgramIconGrid() {
+            const gridContainer = document.getElementById("win36-icon-grid");
+            gridContainer.innerHTML = "";
+
+            const slotCollection = Array(16).fill(null);
+            currentDb.apps.forEach(app => {
+                if (app.slot >= 0 && app.slot < 16) {
+                    slotCollection[app.slot] = app;
+                }
+            });
+
+            slotCollection.forEach((app, index) => {
+                const cell = document.createElement("div");
+                cell.className = "relative border border-amberDim/30 bg-black/45 aspect-square flex flex-col items-center justify-center p-1 rounded-sm hover:bg-amberDim/15 transition-all";
+                cell.setAttribute("data-slot", index);
+                
+                // Allow drops
+                cell.addEventListener("dragover", onDragOver);
+                cell.addEventListener("dragenter", onDragEnter);
+                cell.addEventListener("dragleave", onDragLeave);
+                cell.addEventListener("drop", onDragDrop);
+
+                if (app) {
+                    const programEl = document.createElement("div");
+                    programEl.className = "app-item w-full h-full flex flex-col items-center justify-between text-center cursor-pointer";
+                    programEl.setAttribute("draggable", "true");
+                    programEl.setAttribute("data-id", app.id);
+                    
+                    programEl.addEventListener("dragstart", onDragStart);
+                    programEl.addEventListener("dragend", onDragEnd);
+                    programEl.addEventListener("click", () => handleProgramClick(app));
+
+                    const glyphHolder = document.createElement("div");
+                    glyphHolder.className = "flex-1 flex items-center justify-center w-full";
+                    glyphHolder.innerHTML = VECTOR_GLYPHS[app.action] || VECTOR_GLYPHS.disabled;
+
+                    const titleSpan = document.createElement("span");
+                    titleSpan.className = "text-[8px] font-bold tracking-tighter uppercase line-clamp-1 block w-full text-center mt-1";
+                    titleSpan.textContent = app.label;
+
+                    const idxTag = document.createElement("span");
+                    idxTag.className = "absolute top-0.5 left-1 text-[7px] text-amberDim/50";
+                    idxTag.textContent = String(app.id).padStart(2, '0');
+
+                    programEl.appendChild(glyphHolder);
+                    programEl.appendChild(titleSpan);
+                    programEl.appendChild(idxTag);
+                    cell.appendChild(programEl);
+                }
+
+                gridContainer.appendChild(cell);
+            });
+        }
+
+        // DESKTOP INTERACTIVE DRAGGING
+        let draggingInstance = null;
+
+        function onDragStart(e) {
+            draggingInstance = this;
+            this.classList.add("app-dragging");
+            e.dataTransfer.setData("text/plain", this.getAttribute("data-id"));
+            playRetroClick(420, 0.05, "sawtooth");
+        }
+
+        function onDragEnd() {
+            this.classList.remove("app-dragging");
+            draggingInstance = null;
+        }
+
+        function onDragOver(e) {
+            e.preventDefault();
+        }
+
+        function onDragEnter(e) {
+            e.preventDefault();
+            this.classList.add("bg-amberDim/20");
+        }
+
+        function onDragLeave() {
+            this.classList.remove("bg-amberDim/20");
+        }
+
+        function onDragDrop(e) {
+            this.classList.remove("bg-amberDim/20");
+            const appId = parseInt(e.dataTransfer.getData("text/plain"));
+            const targetSlotIndex = parseInt(this.getAttribute("data-slot"));
+
+            const srcApp = currentDb.apps.find(a => a.id === appId);
+            const dstApp = currentDb.apps.find(a => a.slot === targetSlotIndex);
+
+            if (srcApp) {
+                const prevSlot = srcApp.slot;
+                srcApp.slot = targetSlotIndex;
+                if (dstApp) {
+                    dstApp.slot = prevSlot;
+                }
+                saveStorageData();
+                playRetroClick(620, 0.04, "triangle");
+                appendOsLog(`[>] Repositioned App Icon Slot ${prevSlot} to ${targetSlotIndex}`);
+            }
+        }
+
+        // GLOBAL HTML5 FULLSCREEN API TOGGLE
+        function toggleGlobalFullscreen() {
+            playRetroClick(600, 0.05, "sine");
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(err => {
+                    appendOsLog("[!] Error enabling fullscreen mode.");
+                });
+                appendOsLog("[>] Global fullscreen mode enabled.");
+            } else {
+                document.exitFullscreen();
+                appendOsLog("[>] Global fullscreen mode disabled.");
+            }
+        }
+
+        // RETRO DRAGGABLE WINDOW SYSTEM
+        let windowFocusLevelIndex = 100;
+
+        function launchCustomWindow(title, type) {
+            const openWin = document.getElementById(`win36-${type}`);
+            if (openWin) {
+                focusCustomWindow(openWin);
+                return;
+            }
+
+            const win = document.createElement("div");
+            win.id = `win36-${type}`;
+            win.className = "absolute w-[380px] md:w-[500px] win36-bevel-out win36-window-border flex flex-col pointer-events-auto drag-window transition-all duration-150";
+            win.style.zIndex = ++windowFocusLevelIndex;
+
+            const openedCount = document.querySelectorAll(".drag-window").length;
+            const posOffset = (openedCount * 22) % 110;
+            win.style.top = `${50 + posOffset}px`;
+            win.style.left = `${40 + posOffset}px`;
+
+            // Windows 36 Title Bar Chrome with Maximize/Restore Button
+            const header = document.createElement("div");
+            header.className = "drag-header bg-amberDim text-black font-bold text-[10px] p-2 flex justify-between items-center select-none";
+            header.innerHTML = `
+                <span class="tracking-widest uppercase font-bold text-[9px]">${title}</span>
+                <div class="flex gap-1.5">
+                    <button class="px-2 py-0.5 hover:bg-black hover:text-amberGlow border border-black leading-none" onclick="minimizeCustomWindow('${type}')">_</button>
+                    <button class="px-2 py-0.5 hover:bg-black hover:text-amberGlow border border-black leading-none" onclick="maximizeCustomWindow('${type}')">[ ]</button>
+                    <button class="px-1.5 py-0.5 hover:bg-red-800 hover:text-white border border-black leading-none" onclick="closeCustomWindow('${type}')">X</button>
+                </div>
+            `;
+
+            // Content Panel viewport
+            const viewport = document.createElement("div");
+            viewport.className = "p-3.5 text-xs font-mono text-amberGlow/90 flex-1 flex flex-col max-h-[380px] overflow-y-auto bg-black";
+
+            compileAppCoreContents(viewport, type);
+
+            win.appendChild(header);
+            win.appendChild(viewport);
+            document.getElementById("desktop-window-workspace").appendChild(win);
+
+            setupDragHandlers(win, header);
+            focusCustomWindow(win);
+            appendOsLog(`[>] Opened system task: ${title}`);
+        }
+
+        function focusCustomWindow(winElement) {
+            playRetroClick(480, 0.04, "sine");
+            winElement.style.zIndex = ++windowFocusLevelIndex;
+            document.querySelectorAll(".drag-window").forEach(w => w.style.borderColor = "#9e5100");
+            winElement.style.borderColor = "#ff8800";
+        }
+
+        function closeCustomWindow(type) {
+            playRetroClick(300, 0.06, "sawtooth");
+            const win = document.getElementById(`win36-${type}`);
+            if (win) {
+                win.remove();
+                appendOsLog(`[>] De-allocated task thread memory: ${type.toUpperCase()}`);
+            }
+        }
+
+        function minimizeCustomWindow(type) {
+            const win = document.getElementById(`win36-${type}`);
+            if (win) {
+                win.classList.toggle("hidden");
+            }
+        }
+
+        // WINDOW MAXIMIZE / RESTORE SYSTEM
+        function maximizeCustomWindow(type) {
+            playRetroClick(500, 0.05, "sine");
+            const win = document.getElementById(`win36-${type}`);
+            if (win) {
+                const viewport = win.querySelector("div:nth-child(2)");
+                if (win.style.width === "100%") {
+                    // Restore original size and position
+                    win.style.width = "500px";
+                    win.style.height = "auto";
+                    win.style.top = win.dataset.prevTop || "100px";
+                    win.style.left = win.dataset.prevLeft || "100px";
+                    if (viewport) viewport.style.maxHeight = "380px";
+                    appendOsLog(`[>] Restored window dimensions: ${type.toUpperCase()}`);
+                } else {
+                    // Maximize to full workstation desktop area
+                    win.dataset.prevTop = win.style.top;
+                    win.dataset.prevLeft = win.style.left;
+                    win.style.top = "50px";
+                    win.style.left = "0px";
+                    win.style.width = "100%";
+                    win.style.height = "calc(100% - 120px)";
+                    if (viewport) viewport.style.maxHeight = "100%";
+                    appendOsLog(`[>] Maximized window: ${type.toUpperCase()}`);
+                }
+            }
+        }
+
+        // ELEMENT MOVE DRAGGING MODULE
+        function setupDragHandlers(element, handle) {
+            let startX = 0, startY = 0, clientX = 0, clientY = 0;
+            handle.onmousedown = onMouseDown;
+
+            function onMouseDown(e) {
+                // Ignore dragging if window is currently maximized to full screen
+                if (element.style.width === "100%") return;
+
+                e = e || window.event;
+                e.preventDefault();
+                focusCustomWindow(element);
+                clientX = e.clientX;
+                clientY = e.clientY;
+                document.onmouseup = onMouseUp;
+                document.onmousemove = onMouseMove;
+            }
+
+            function onMouseMove(e) {
+                e = e || window.event;
+                e.preventDefault();
+                startX = clientX - e.clientX;
+                startY = clientY - e.clientY;
+                clientX = e.clientX;
+                clientY = e.clientY;
+
+                let top = element.offsetTop - startY;
+                let left = element.offsetLeft - startX;
+
+                if (top < 10) top = 10;
+                if (left < 10) left = 10;
+
+                element.style.top = `${top}px`;
+                element.style.left = `${left}px`;
+            }
+
+            function onMouseUp() {
+                document.onmouseup = null;
+                document.onmousemove = null;
+            }
+        }
+
+        // PASSWORD DECRYPTION SYSTEM VERIFICATION
+        function attemptSystemUnlock() {
+            const field = document.getElementById("decryption-password-field");
+            const val = field.value.trim().toUpperCase();
+            const correctKey = currentDb.metadata.lockPasscode.toUpperCase();
+
+            initOsAudio();
+
+            if (val === correctKey) {
+                // Success Unlock sequence
+                playAccessUnlockedSound();
+                document.getElementById("boot-lock-screen").style.display = "none";
+                appendOsLog("[>] C.A.L.V.I.N. OS security shield decrypted successfully.");
+                appendOsLog("[>] Access privilege: System Root.");
+            } else {
+                // Fail
+                playErrorBeep();
+                field.value = "";
+                field.placeholder = "DENIED";
+                setTimeout(() => {
+                    field.placeholder = "******";
+                }, 1500);
+            }
+        }
+
+        function lockMainSystem() {
+            playRetroClick(220, 0.15, "sawtooth");
+            document.getElementById("boot-lock-screen").style.display = "flex";
+            document.getElementById("decryption-password-field").value = "";
+            appendOsLog("[>] Terminal workstation locked by user command.");
+        }
+
+        // IN-APP LOCAL IFRAME SHORTCUT LAUNCHER
+        function launchQuickLinkInApp(colorKey) {
+            const data = currentDb.quickLinks[colorKey];
+            appendOsLog(`[!] Shortcut trigger intercepted: ${data.label}`);
+            
+            // Re-route and load directly inside C.A.L.V.I.N Web Browser app
+            launchCustomWindow("C.A.L.V.I.N. Web Gate", "browser");
+            setTimeout(() => {
+                const addr = document.getElementById("win36-browser-address");
+                if (addr) {
+                    addr.value = data.path;
+                    loadTargetIframeUrl();
+                }
+            }, 150);
+        }
+
+        // LOGGER STACK INJECTION
+        function appendOsLog(msg) {
+            const logsBox = document.getElementById("win36-system-logs");
+            const item = document.createElement("div");
+            item.textContent = msg;
+            logsBox.appendChild(item);
+            logsBox.scrollTop = logsBox.scrollHeight;
+        }
+
+        // CONSOLE COMMAND INGESTION FORM
+        function handleConsoleCommandSubmit(event) {
+            event.preventDefault();
+            const input = document.getElementById("win36-command-input");
+            const raw = input.value.trim().toUpperCase();
+            if (!raw) return;
+
+            playRetroClick(850, 0.08, "triangle");
+            
+            // Intercept auto-correct
+            const runAutoCorrect = runGrammarShieldCorrector(raw);
+            const query = runAutoCorrect.text;
+            
+            appendOsLog(`CALVIN&gt; ${query}`);
+            if (runAutoCorrect.corrected) {
+                appendOsLog(`[>] Grammar corrected cmd parameters to: ${query}`);
+            }
+
+            if (query === "HELP" || query === "?") {
+                appendOsLog("[>] COMMANDS: HELP, LOCK, CLEAR, SYS, EXPLORE, CHAT, BROWSER");
+            } else if (query === "LOCK") {
+                lockMainSystem();
+            } else if (query === "CLEAR") {
+                document.getElementById("win36-system-logs").innerHTML = "<div>[>] Logs cleared. Standby.</div>";
+            } else if (query === "SYS") {
+                launchCustomWindow("System Diagnostic Center", "diagnostics");
+            } else if (query === "EXPLORE") {
+                launchCustomWindow("File System Explorer", "explorer");
+            } else if (query === "CHAT") {
+                launchCustomWindow("AI Agent Chat", "chat");
+            } else if (query === "BROWSER") {
+                launchCustomWindow("C.A.L.V.I.N. Web Gate", "browser");
+            } else {
+                // Feed custom command terms into local sandbox chatbot instantly
+                launchCustomWindow("AI Agent Chat", "chat");
+                setTimeout(() => {
+                    const box = document.getElementById("chat-viewport-input");
+                    if (box) {
+                        box.value = query;
+                        submitAgentChatQuery();
+                    }
+                }, 200);
+            }
+
+            input.value = "";
+        }
+
+        // PROGRAM ICON DOUBLE CLICK TARGET INTERCEPTOR
+        function handleProgramClick(app) {
+            if (app.action === "disabled") {
+                playErrorBeep();
+                appendOsLog(`[!] Slot ${app.id} locked. Action inactive.`);
+                return;
+            }
+
+            if (app.action === "settings") {
+                launchSettingsApp();
+                return;
+            }
+
+            launchCustomWindow(app.label, app.action);
+        }
+
+        // CHATBOT CHIP VOICE ANSWERS
+        const MAIN_AGENT_ANSWERS = [
+            "Cognition buffer fully calibrated. Process output normal.",
+            "Analyzing workstation registers... Core status: Nominal.",
+            "C.A.L.V.I.N. confirms security metrics meet strict guidelines.",
+            "Local command execution thread successfully parsed.",
+            "Mainframe vector cluster tracking operates at peak capability."
+        ];
+
+        function submitAgentChatQuery() {
+            const input = document.getElementById("chat-viewport-input");
+            const rawText = input.value.trim();
+            if (!rawText) return;
+
+            playRetroClick(680, 0.05, "sine");
+            const log = document.getElementById("chat-viewport-messages");
+
+            // Auto grammar check
+            const grammarCheck = runGrammarShieldCorrector(rawText);
+            const text = grammarCheck.text;
+
+            const uDiv = document.createElement("div");
+            uDiv.className = "text-amberGlow/70 mb-2";
+            uDiv.innerHTML = `<span class="font-bold">USER_SECURE:</span> ${text}`;
+            log.appendChild(uDiv);
+            if (grammarCheck.corrected) {
+                const autoCorrectLog = document.createElement("div");
+                autoCorrectLog.className = "text-[9px] text-amberDim italic mb-1.5";
+                autoCorrectLog.textContent = "[!] Shield spelling parameters automatically corrected.";
+                log.appendChild(autoCorrectLog);
+            }
+
+            input.value = "";
+
+            const thinking = document.createElement("div");
+            thinking.className = "text-amberDim italic text-[10px] mb-2";
+            thinking.textContent = "... formulating core pathway logic ...";
+            log.appendChild(thinking);
+            log.scrollTop = log.scrollHeight;
+
+            setTimeout(() => {
+                thinking.remove();
+                const phrase = MAIN_AGENT_ANSWERS[Math.floor(Math.random() * MAIN_AGENT_ANSWERS.length)];
+                const sDiv = document.createElement("div");
+                sDiv.className = "text-amberGlow mb-3 bg-amberGlow/5 p-2 border border-amberDim/30";
+                sDiv.innerHTML = `<span class="font-bold">CALVIN_CORE:</span> ${phrase}`;
+                log.appendChild(sDiv);
+                log.scrollTop = log.scrollHeight;
+                playRetroClick(510, 0.08, "triangle");
+            }, 600);
+        }
+
+        // DYNAMIC SANDBOX APPLICATION WINDOW DRAW COMPILER
+        function compileAppCoreContents(parent, type) {
+            parent.innerHTML = "";
+
+            switch(type) {
+                case "chat":
+                    parent.className += " h-[300px] flex flex-col justify-between";
+                    parent.innerHTML = `
+                        <div id="chat-viewport-messages" class="flex-1 overflow-y-auto mb-3 space-y-2 border border-amberDim/30 bg-black p-2 h-[210px]">
+                            <div class="text-amberDim">[+] SECURE AI SESSION ONLINE. READY FOR TERMINAL QUERY.</div>
+                        </div>
+                        <div class="flex gap-2">
+                            <input type="text" id="chat-viewport-input" placeholder="Type prompt command..." class="flex-1 bg-[#140600] border-2 border-amberDim p-1.5 text-amberGlow text-xs focus:outline-none focus:border-amberGlow" />
+                            <button onclick="submitAgentChatQuery()" class="win36-button text-amberGlow px-4 font-bold text-xs uppercase">[ SEND ]</button>
+                        </div>
+                    `;
+                    setTimeout(() => {
+                        document.getElementById("chat-viewport-input").addEventListener("keypress", (e) => {
+                            if (e.key === "Enter") submitAgentChatQuery();
+                        });
+                        setupLiveAutocorrect("chat-viewport-input");
+                    }, 50);
+                    break;
+
+                case "explorer":
+                    parent.className += " h-[320px] flex flex-col";
+                    renderExplorerAppGrid(parent);
+                    break;
+
+                case "notepad":
+                    parent.className += " h-[300px] flex flex-col space-y-2";
+                    const savedContent = localStorage.getItem("calvin_noted_data") || "// C.A.L.V.I.N. OS SCRATCHPAD\nType system memory logs here.";
+                    parent.innerHTML = `
+                        <textarea id="notepad-textarea-box" class="flex-1 w-full bg-black border-2 border-amberDim p-2 text-amberGlow font-mono text-xs focus:outline-none focus:border-amberGlow resize-none">${savedContent}</textarea>
+                        <div class="flex justify-between items-center">
+                            <button onclick="runNotepadGrammarCheck()" class="win36-button text-amberGlow px-3 py-1 font-bold text-[9px] uppercase">[ AUTO-FIX GRAMMAR ]</button>
+                            <span id="notepad-sync-lbl" class="text-[9px] text-amberDim">Auto-cache system active</span>
+                            <button onclick="forceSyncNotepadStorage()" class="win36-button text-amberGlow px-3 py-1 font-bold text-[9px] uppercase">[ SYNC CHIP ]</button>
+                        </div>
+                    `;
+                    setTimeout(() => {
+                        const box = document.getElementById("notepad-textarea-box");
+                        box.addEventListener("input", () => {
+                            localStorage.setItem("calvin_noted_data", box.value);
+                        });
+                    }, 50);
+                    break;
+
+                case "matrix":
+                    parent.className += " h-[280px] p-0 overflow-hidden relative";
+                    const cv = document.createElement("canvas");
+                    cv.className = "w-full h-full";
+                    parent.appendChild(cv);
+                    setTimeout(() => {
+                        startMatrixDigitalStream(cv);
+                    }, 100);
+                    break;
+
+                case "synth":
+                    parent.className += " space-y-3";
+                    parent.innerHTML = `
+                        <p class="text-[9px] text-amberDim">[+] CHIPTUNE WAVE FORM SELECTOR</p>
+                        <div class="grid grid-cols-4 gap-2">
+                            <button onclick="playRetroClick(220, 0.4, 'sine')" class="win36-button text-amberGlow py-2.5 text-[9px]">SINE_A2</button>
+                            <button onclick="playRetroClick(330, 0.35, 'triangle')" class="win36-button text-amberGlow py-2.5 text-[9px]">TRI_E3</button>
+                            <button onclick="playRetroClick(440, 0.3, 'sawtooth')" class="win36-button text-amberGlow py-2.5 text-[9px]">SAW_A4</button>
+                            <button onclick="playRetroClick(880, 0.25, 'square')" class="win36-button text-amberGlow py-2.5 text-[9px]">SQ_A5</button>
+                        </div>
+                        <div class="p-2 border border-dashed border-amberDim/45 text-[9px] text-amberDim">
+                            Enable workstation audio indicator switch at top bar of desktop screen to release retro synth audio.
+                        </div>
+                    `;
+                    break;
+
+                case "diagnostics":
+                    parent.className += " space-y-4 h-[280px] flex flex-col justify-between";
+                    parent.innerHTML = `
+                        <div class="space-y-3">
+                            <div>
+                                <div class="flex justify-between text-[10px] text-amberDim"><span>MAIN CPU LOGIC COGNITION LOAD</span><span id="stat-main-mem">35%</span></div>
+                                <div class="w-full bg-black border border-amberDim h-2.5 mt-1"><div id="stat-bar-main-mem" class="bg-amberGlow h-full" style="width: 35%;"></div></div>
+                            </div>
+                            <div>
+                                <div class="flex justify-between text-[10px] text-amberDim"><span>MATRIX CONSCIOUSNESS LEVEL</span><span id="stat-main-freq">5.1 GHz</span></div>
+                                <div class="w-full bg-black border border-amberDim h-2.5 mt-1"><div id="stat-bar-main-freq" class="bg-amberGlow h-full" style="width: 89%;"></div></div>
+                            </div>
+                        </div>
+                        <div class="bg-amberGlow/5 border border-amberDim/35 p-2 text-center text-[9px]">
+                            C.A.L.V.I.N. SYSTEM ENGINE NOMINAL DIAGNOSTIC
+                        </div>
+                    `;
+                    let sysInt = setInterval(() => {
+                        const mEl = document.getElementById("stat-main-mem");
+                        if (!mEl) { clearInterval(sysInt); return; }
+                        const mVal = Math.floor(Math.random() * 20) + 25;
+                        const fVal = (4.5 + Math.random() * 1.2).toFixed(1);
+                        mEl.textContent = `${mVal}%`;
+                        document.getElementById("stat-bar-main-mem").style.width = `${mVal}%`;
+                        document.getElementById("stat-main-freq").textContent = `${fVal} GHz`;
+                        document.getElementById("stat-bar-main-freq").style.width = `${fVal * 16}%`;
+                    }, 1800);
+                    break;
+
+                case "browser":
+                    parent.className += " h-[340px] flex flex-col p-0 bg-[#060200]";
+                    parent.innerHTML = `
+                        <!-- Browser Bar Header -->
+                        <div class="flex items-center gap-1.5 p-2 border-b border-amberDim bg-[#231206]">
+                            <button onclick="goHomeBrowser()" class="px-2 py-0.5 win36-button text-[9px] text-amberGlow font-bold">[ HOME ]</button>
+                            <input type="text" id="win36-browser-address" value="https://wikipedia.org" class="flex-1 bg-black border border-amberDim p-1 text-[11px] text-amberGlow focus:outline-none">
+                            <button onclick="loadTargetIframeUrl()" class="px-2 py-0.5 win36-button text-[9px] text-amberGlow font-bold">[ GO ]</button>
+                        </div>
+                        
+                        <!-- Real-time Live Wikipedia / Search Engine Dynamic Client Workspace -->
+                        <div class="flex-1 relative overflow-hidden bg-black flex flex-col" id="win36-browser-frame-container">
+                            
+                            <!-- Static embedded viewport for links that accept frames -->
+                            <iframe id="win36-browser-viewport" src="https://wikipedia.org" class="w-full h-full border-none hidden"></iframe>
+                            
+                            <!-- Dynamic CORS-friendly Native Retro Wikipedia reader (Prevents Frame Security Blocks!) -->
+                            <div id="retro-wikipedia-viewer" class="absolute inset-0 bg-black text-amberGlow flex flex-col p-3 overflow-y-auto space-y-3 z-10 hidden">
+                                <div class="border-b border-dashed border-amberDim pb-2">
+                                    <span class="text-xs font-bold uppercase text-amberGlow">// C.A.L.V.I.N. RETRO WIKIPEDIA CORE //</span>
+                                    <p class="text-[9px] text-amberDim">Active live fetch gate connected over Wikipedia open CORS API.</p>
+                                </div>
+                                
+                                <div class="flex gap-2">
+                                    <input type="text" id="wiki-search-field" placeholder="Search Wikipedia database..." class="flex-1 bg-black border border-amberDim p-1.5 text-xs text-amberGlow focus:outline-none focus:border-amberGlow uppercase">
+                                    <button onclick="executeLiveWikiSearch()" class="win36-button text-amberGlow px-3 py-1 text-[10px] font-bold">[ SEARCH ]</button>
+                                </div>
+
+                                <div id="wiki-results-area" class="space-y-2 mt-2 text-xs">
+                                    <p class="text-amberDim text-[10px]">// TOP TRENDING ARTICLES //</p>
+                                    <div class="grid grid-cols-2 gap-2 text-left">
+                                        <button onclick="loadLiveWikiArticle('Artificial intelligence')" class="border border-amberDim/30 p-2 text-left hover:bg-amberDim/20 truncate text-[11px]">Artificial Intelligence</button>
+                                        <button onclick="loadLiveWikiArticle('Quantum computing')" class="border border-amberDim/30 p-2 text-left hover:bg-amberDim/20 truncate text-[11px]">Quantum Computing</button>
+                                        <button onclick="loadLiveWikiArticle('Mainframe computer')" class="border border-amberDim/30 p-2 text-left hover:bg-amberDim/20 truncate text-[11px]">Mainframe Computer</button>
+                                        <button onclick="loadLiveWikiArticle('Retrocomputing')" class="border border-amberDim/30 p-2 text-left hover:bg-amberDim/20 truncate text-[11px]">Retro Computing</button>
+                                    </div>
+                                </div>
+                                
+                                <div id="wiki-article-display" class="hidden border border-amberDim p-3 space-y-2 bg-amberDark/25 text-left">
+                                    <div class="flex justify-between border-b border-amberDim/30 pb-1.5">
+                                        <span id="wiki-article-title" class="font-bold uppercase text-xs text-amberGlow"></span>
+                                        <button onclick="closeWikiArticle()" class="text-[9px] text-amberDim">[ BACK TO SEARCH ]</button>
+                                    </div>
+                                    <p id="wiki-article-text" class="text-[11px] text-zinc-300 leading-relaxed max-h-[160px] overflow-y-auto pr-1"></p>
+                                </div>
+                            </div>
+
+                            <!-- Dynamic CORS-friendly Native Retro DuckDuckGo Client (Bypasses Blocks!) -->
+                            <div id="retro-duckduckgo-viewer" class="absolute inset-0 bg-black text-amberGlow flex flex-col p-3 overflow-y-auto space-y-3 z-10 hidden">
+                                <div class="border-b border-dashed border-amberDim pb-2 text-center">
+                                    <pre class="text-[6px] text-amberGlow leading-none font-bold select-none animate-pulse">
+  ____             _     ____             _     ____      
+ |  _ \\ _   _  ___| | __|  _ \\ _   _  ___| | __/ ___| ___  
+ | | | | | | |/ __| |/ /| | | | | | |/ __| |/ / |  _ / _ \\ 
+ | |_| | |_| | (__|   < | |_| | |_| | (__|   <| |_| | (_) |
+ |____/ \\__,_|\\___|_|\\_\\|____/ \\__,_|\\___|_|\\_\\\\____|\\___/ 
+                                    </pre>
+                                    <p class="text-[9px] text-amberDim mt-2">C.A.L.V.I.N. COGNITIVE SECURE OFFLINE QUERY INDEX</p>
+                                </div>
+                                
+                                <div class="flex gap-2">
+                                    <input type="text" id="ddg-search-field" placeholder="Input DuckDuckGo parameters..." class="flex-1 bg-black border border-amberDim p-1.5 text-xs text-amberGlow focus:outline-none focus:border-amberGlow uppercase">
+                                    <button onclick="executeLiveDdgSearch()" class="win36-button text-amberGlow px-3 py-1 text-[10px] font-bold">[ ENQUIRE ]</button>
+                                </div>
+
+                                <div id="ddg-results-area" class="flex-1 overflow-y-auto space-y-2 mt-2 text-xs pr-1">
+                                    <p class="text-amberDim text-[10px]">// PRE-CACHED TERMINAL SUGGESTIONS //</p>
+                                    <div class="border border-amberDim/30 p-2 bg-amberDark/15">
+                                        <span class="font-bold text-amberGlow block">PROMPT_ENGINE_NOTE</span>
+                                        <p class="text-[10px] text-zinc-400">Because external browser engines block embedding frames, this offline diagnostic proxy intercepts DuckDuckGo queries directly.</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- CORS-friendly Native Retro Google client -->
+                            <div id="retro-google-viewer" class="absolute inset-0 bg-[#060200] text-amberGlow flex flex-col p-3 overflow-y-auto space-y-3 z-10 hidden">
+                                <div class="border-b border-dashed border-amberDim pb-2 text-center">
+                                    <pre class="text-[6px] text-amberGlow leading-none font-bold select-none animate-pulse">
+   ____                      _       
+  / ___| ___   ___   __ _ | | ___ 
+ | |  _ / _ \\ / _ \\ / _\` || |/ _ \\
+ | |_| | (_) | (_) | (_| || |  __/
+  \\____|\\___/ \\___/ \\__, ||_|\\___|
+                    |___/         
+                                    </pre>
+                                    <p class="text-[9px] text-amberDim mt-2">INTERCEPT ENGINE: TARGET PATH EMBED SECURED</p>
+                                </div>
+                                
+                                <div class="flex gap-2">
+                                    <input type="text" id="google-search-field" placeholder="Type Google Search Query..." class="flex-1 bg-black border border-amberDim p-1.5 text-xs text-amberGlow focus:outline-none focus:border-amberGlow uppercase">
+                                    <button onclick="executeLiveGoogleSearch()" class="win36-button text-amberGlow px-3 py-1 text-[10px] font-bold">[ GOOGLE ]</button>
+                                </div>
+
+                                <div id="google-results-area" class="flex-1 overflow-y-auto space-y-2 mt-2 text-xs pr-1">
+                                    <!-- Populated dynamically -->
+                                </div>
+                            </div>
+                            
+                            <!-- Custom Warning for other iframe blocking limits (Google, etc.) -->
+                            <div id="win36-iframe-block-alert" class="absolute inset-0 bg-[#0c0400] text-amberGlow p-4 flex flex-col justify-center items-center text-center space-y-3 hidden z-20">
+                                <span class="font-bold text-xs uppercase text-red-500">// EXTERNAL GATEWAY SECURITY ALARM //</span>
+                                <p class="text-[10px] text-amberDim max-w-[340px]">This gate prevents inline renders inside workspaces. You can launch this URL into a real browser tab safely:</p>
+                                <div class="p-2 border border-dashed border-amberDim text-[10px] bg-black/50 text-left w-full truncate">
+                                    <p class="font-bold">TARGET GATE PATH:</p>
+                                    <p id="blocked-frame-url-text" class="text-amberGlow"></p>
+                                </div>
+                                <button onclick="bypassBrowserBlock()" class="win36-button text-amberGlow px-4 py-1.5 text-[10px] font-bold">[ FORCE DIRECT NEW TAB DIRECTIVE ]</button>
+                            </div>
+                        </div>
+                    `;
+                    setTimeout(() => {
+                        setupLiveAutocorrect("ddg-search-field");
+                        setupLiveAutocorrect("google-search-field");
+                    }, 50);
+                    break;
+
+                case "paint":
+                    parent.className += " h-[340px] flex flex-col space-y-2 p-0";
+                    parent.innerHTML = `
+                        <div class="flex justify-between items-center p-2 border-b border-amberDim/30 bg-[#231206]">
+                            <span class="text-[9px] text-amberDim">[+] GRAPHICS EDITOR</span>
+                            <button onclick="clearPaintScreenCanvas()" class="text-[9px] win36-button px-2.5 py-0.5">[ RESET SCREEN ]</button>
+                        </div>
+                        <canvas id="paint-win36-cv" class="flex-grow bg-black border border-amberDim/20 cursor-crosshair"></canvas>
+                    `;
+                    setTimeout(() => {
+                        initializePaintDeviceCanvas();
+                    }, 100);
+                    break;
+
+                case "grammar":
+                    parent.className += " h-[320px] flex flex-col justify-between space-y-3";
+                    parent.innerHTML = `
+                        <div class="space-y-1">
+                            <span class="text-[10px] text-amberDim uppercase font-bold">[+] C.A.L.V.I.N. GRAMMAR SHIELD SENSOR</span>
+                            <p class="text-[9px] text-amberDim">Spelling errors are dynamically scanned and auto-repaired using terminal dictionary maps.</p>
+                        </div>
+                        <div class="win36-bevel-in p-2 flex-1 flex flex-col">
+                            <textarea id="grammar-checker-textarea" placeholder="Paste or type text with errors (e.g. automaticly, gramer, resaults, dont)..." class="w-full flex-grow bg-black text-xs text-amberGlow focus:outline-none resize-none"></textarea>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span id="grammar-shield-indicator" class="text-[9px] text-amberDim">Status: Shield armed</span>
+                            <button onclick="executeGrammarAppCorrection()" class="win36-button text-amberGlow px-4 py-1.5 text-[10px] font-bold">[ SCAN AND AUTO-CORRECT ]</button>
+                        </div>
+                    `;
+                    break;
+            }
+        }
+
+        // AUTO NOTEPAD GRAMMAR CHECK BUTTON
+        function runNotepadGrammarCheck() {
+            const box = document.getElementById("notepad-textarea-box");
+            if (box) {
+                const res = runGrammarShieldCorrector(box.value);
+                box.value = res.text;
+                localStorage.setItem("calvin_noted_data", box.value);
+                const lbl = document.getElementById("notepad-sync-lbl");
+                if (res.corrected) {
+                    lbl.textContent = "GRAMMAR SHIELD CLEANSED";
+                    lbl.className = "text-[9px] text-green-500 font-bold animate-pulse";
+                    playAccessUnlockedSound();
+                } else {
+                    lbl.textContent = "ZERO ERRORS LOCATED";
+                    lbl.className = "text-[9px] text-amberGlow font-bold";
+                    playRetroClick(600, 0.05, "sine");
+                }
+                setTimeout(() => {
+                    lbl.textContent = "Auto-cache system active";
+                    lbl.className = "text-[9px] text-amberDim";
+                }, 2000);
+            }
+        }
+
+        // GRAMMAR SHIELD DEDICATED APP TRIGGER
+        function executeGrammarAppCorrection() {
+            const textarea = document.getElementById("grammar-checker-textarea");
+            const indicator = document.getElementById("grammar-shield-indicator");
+            if (!textarea || !indicator) return;
+
+            const val = textarea.value.trim();
+            if (!val) return;
+
+            const res = runGrammarShieldCorrector(val);
+            textarea.value = res.text;
+
+            if (res.corrected) {
+                indicator.textContent = "CLEANSED: REPAIRED TEXT CORES";
+                indicator.className = "text-[9px] text-green-400 font-bold";
+                playAccessUnlockedSound();
+            } else {
+                indicator.textContent = "NOMINAL: NO ERRORS FOUND";
+                indicator.className = "text-[9px] text-amberGlow font-bold";
+                playRetroClick(600, 0.05, "sine");
+            }
+
+            setTimeout(() => {
+                indicator.textContent = "Status: Shield armed";
+                indicator.className = "text-[9px] text-amberDim";
+            }, 2000);
+        }
+
+        // ROUTE LIVE BROWSING CLICKS DIRECTLY INSIDE OS IFRAME GATEWAY
+        function navigateBrowserInline(url) {
+            const browserAddress = document.getElementById("win36-browser-address");
+            if (browserAddress) {
+                browserAddress.value = url;
+                loadTargetIframeUrl();
+            }
+        }
+
+        // DYNAMIC WIKIPEDIA API FETCHING ENGINE
+        async function executeLiveWikiSearch() {
+            const input = document.getElementById("wiki-search-field");
+            const query = input.value.trim();
+            if (!query) return;
+
+            playRetroClick(700, 0.08, "triangle");
+            const resultsArea = document.getElementById("wiki-results-area");
+            resultsArea.innerHTML = `<p class="text-xs text-amberDim italic">Querying real Wikipedia API cluster over CORS...</p>`;
+            
+            try {
+                const url = `https://en.wikipedia.org/w/api.php?action=query&origin=*&format=json&list=search&utf8=1&srsearch=${encodeURIComponent(query)}`;
+                const response = await fetch(url);
+                const data = await response.json();
+                const results = data.query.search;
+
+                resultsArea.innerHTML = `
+                    <p class="text-amberDim text-[10px]">// TOP LOCAL DATABASE MATCHES //</p>
+                    <div class="flex flex-col gap-1.5 max-h-[160px] overflow-y-auto pr-1">
+                        ${results.map(r => `
+                            <button onclick="loadLiveWikiArticle('${r.title}')" class="border border-amberDim/25 p-2 text-left hover:bg-amberDim/20 text-[11px] leading-tight">
+                                <span class="font-bold block text-amberGlow">${r.title}</span>
+                                <span class="text-[10px] text-zinc-400 font-mono">${r.snippet.replace(/<\/?[^>]+(>|$)/g, "")}...</span>
+                            </button>
+                        `).join("")}
+                    </div>
+                `;
+            } catch (err) {
+                resultsArea.innerHTML = `<p class="text-xs text-red-500">// ERROR ESTABLISHING CONNECTION FEED TO WIKIPEDIA CLUSTER //</p>`;
+            }
+        }
+
+        async function loadLiveWikiArticle(title) {
+            playRetroClick(600, 0.05, "sine");
+            const titleDisplay = document.getElementById("wiki-article-title");
+            const textDisplay = document.getElementById("wiki-article-text");
+            const displayBox = document.getElementById("wiki-article-display");
+            const resultsArea = document.getElementById("wiki-results-area");
+
+            if (titleDisplay) titleDisplay.textContent = title;
+            if (textDisplay) textDisplay.textContent = "Synthesizing text paragraphs...";
+            if (displayBox) displayBox.classList.remove("hidden");
+            if (resultsArea) resultsArea.classList.add("hidden");
+
+            try {
+                const url = `https://en.wikipedia.org/w/api.php?action=query&origin=*&format=json&prop=extracts&exintro=1&explaintext=1&titles=${encodeURIComponent(title)}`;
+                const response = await fetch(url);
+                const data = await response.json();
+                const pages = data.query.pages;
+                const pageId = Object.keys(pages)[0];
+                const extract = pages[pageId].extract || "No extract data found for this registry node.";
+
+                if (textDisplay) textDisplay.textContent = extract;
+                appendOsLog(`[>] Parsed article: ${title}`);
+            } catch (err) {
+                if (textDisplay) textDisplay.textContent = "Error parsing paragraph node structure.";
+            }
+        }
+
+        function closeWikiArticle() {
+            playRetroClick(400, 0.05, "sine");
+            document.getElementById("wiki-article-display").classList.add("hidden");
+            document.getElementById("wiki-results-area").classList.remove("hidden");
+        }
+
+        // HELPER TO DETECT AND SAFE-EVAL MATH FORMULAS
+        function evaluateArithmeticQuery(query) {
+            const mathPattern = /^[0-9+\-*/().\s]+$/;
+            if (mathPattern.test(query)) {
+                try {
+                    const sanitized = query.replace(/[^0-9+\-*/().\s]/g, '');
+                    const result = Function("\"use strict\"; return (" + sanitized + ")")();
+                    if (result !== undefined && !isNaN(result)) {
+                        return { status: true, formula: query, value: result };
+                    }
+                } catch(e) {}
+            }
+            return { status: false };
+        }
+
+        // UPGRADED: LIVE RETRO DUCKDUCKGO SEARCH CLIENT (FETCHES REAL WEB RESULTS & LOADS IN-OS!)
+        async function executeLiveDdgSearch() {
+            const input = document.getElementById("ddg-search-field");
+            const rawQuery = input.value.trim();
+            if (!rawQuery) return;
+
+            playRetroClick(700, 0.08, "triangle");
+            const resultsArea = document.getElementById("ddg-results-area");
+            if (!resultsArea) return;
+
+            // Auto grammar check search query parameter
+            const correctedQuery = runGrammarShieldCorrector(rawQuery);
+            const query = correctedQuery.text;
+            if (correctedQuery.corrected) {
+                input.value = query;
+                appendOsLog(`[>] Autocorrected DuckDuckGo search query spelling.`);
+            }
+            
+            // 1. Look for mathematical expressions in DuckDuckGo queries first
+            const mathEval = evaluateArithmeticQuery(query);
+            if (mathEval.status) {
+                resultsArea.innerHTML = `
+                    <p class="text-amberDim text-[10px]">// C.A.L.V.I.N. COGNITIVE CALCULATION ENGINE //</p>
+                    <div class="border border-amberGlow p-3 bg-amberDark/20 space-y-2">
+                        <div class="flex justify-between border-b border-amberDim/30 pb-1">
+                            <span class="font-bold text-[10px] uppercase text-amberGlow">INTEGRATED RAM COMPUTATION MATCH</span>
+                            <span class="text-[9px] text-green-500">CALC_OK</span>
+                        </div>
+                        <div class="p-2.5 bg-black border border-amberDim text-left space-y-1">
+                            <p class="text-[10px] text-amberDim">FORMULA VECTOR:</p>
+                            <p class="text-xs font-bold text-amberGlow tracking-widest">${mathEval.formula}</p>
+                            <p class="text-[10px] text-amberDim mt-2">RESOLVED VALUE:</p>
+                            <p class="text-sm font-bold text-green-400 tracking-wider font-mono">= ${mathEval.value}</p>
+                        </div>
+                        <div class="flex gap-2 justify-end mt-1">
+                            <button onclick="launchInteractiveCalculatorInline()" class="win36-button text-[9px] text-amberGlow px-3 py-1 font-bold">[ BOOT FULL CALCULATOR APP ]</button>
+                        </div>
+                    </div>
+                `;
+                appendOsLog(`[>] Parsed direct math expression via DDG Proxy search: ${mathEval.formula} = ${mathEval.value}`);
+                return;
+            }
+
+            // 2. Query DuckDuckGo Instant Answer API + Fallback Live Web Index
+            resultsArea.innerHTML = `<p class="text-xs text-amberDim italic">Routing secure proxy to DuckDuckGo Instant Answer API...</p>`;
+            
+            try {
+                const ddgUrl = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&origin=*`;
+                const ddgResponse = await fetch(ddgUrl);
+                const ddgData = await ddgResponse.json();
+
+                let resultsHtml = "";
+
+                // Check abstract heading
+                if (ddgData.Heading && ddgData.AbstractText) {
+                    resultsHtml += `
+                        <div class="border border-amberGlow p-3 bg-amberDark/20 mb-3 text-left">
+                            <span class="text-[9px] text-amberDim uppercase block">// DUCKDUCKGO INSTANT ANSWER matches</span>
+                            <span class="font-bold text-amberGlow text-xs block uppercase mt-1">${ddgData.Heading}</span>
+                            <p class="text-[11px] text-zinc-300 leading-normal mt-1">${ddgData.AbstractText}</p>
+                            ${ddgData.AbstractURL ? `
+                                <button onclick="navigateBrowserInline('${ddgData.AbstractURL}')" class="inline-block mt-2 text-[9px] text-amberGlow underline hover:text-white">[ OPEN DIRECT ABSTRACT SOURCE IN-OS ]</button>
+                            ` : ""}
+                        </div>
+                    `;
+                }
+
+                // Gather topics
+                let topics = ddgData.RelatedTopics || [];
+                let validTopics = topics.filter(t => t.Text && t.FirstURL).slice(0, 5);
+
+                if (validTopics.length < 2) {
+                    const backupUrl = `https://en.wikipedia.org/w/api.php?action=query&origin=*&format=json&list=search&utf8=1&srsearch=${encodeURIComponent(query)}`;
+                    const backupResponse = await fetch(backupUrl);
+                    const backupData = await backupResponse.json();
+                    const wikiResults = backupData.query.search || [];
+
+                    wikiResults.forEach(r => {
+                        validTopics.push({
+                            Text: `${r.title} - ${r.snippet.replace(/<\/?[^>]+(>|$)/g, "")}`,
+                            FirstURL: `https://en.wikipedia.org/wiki/${encodeURIComponent(r.title)}`
+                        });
+                    });
+                }
+
+                if (validTopics.length > 0) {
+                    resultsHtml += `
+                        <p class="text-amberDim text-[10px] mb-1.5 uppercase">// SEARCH INDEX MATCH DIRECTORY //</p>
+                        <div class="flex flex-col gap-2 text-left">
+                            ${validTopics.map((topic, i) => {
+                                const splitText = topic.Text.split(" - ");
+                                const title = splitText[0] || "Query Index Match";
+                                const desc = splitText.slice(1).join(" - ") || topic.Text;
+                                return `
+                                    <div class="border border-amberDim/30 p-2.5 bg-black/60 space-y-1">
+                                        <div class="flex justify-between items-center">
+                                            <span class="font-bold text-amberGlow text-[11px] uppercase">${title}</span>
+                                            <span class="text-[8px] text-amberDim">MATCH_${String(i+1).padStart(2, '0')}</span>
+                                        </div>
+                                        <p class="text-[10px] text-zinc-300 leading-normal font-mono">${desc}</p>
+                                        <button onclick="navigateBrowserInline('${topic.FirstURL}')" class="inline-block text-[9px] text-amberDim hover:text-amberGlow mt-1.5 uppercase font-bold">[ VISIT GATEWAY IN-OS ]</button>
+                                    </div>
+                                `;
+                            }).join("")}
+                        </div>
+                    `;
+                } else {
+                    resultsHtml = `
+                        <div class="border border-dashed border-amberDim p-4 text-center">
+                            <span class="text-red-500 font-bold block text-xs">// ZERO RESULTS IN SECTOR //</span>
+                            <p class="text-[10px] text-amberDim mt-1">C.A.L.V.I.N. was unable to locate matching vectors on "${query.toUpperCase()}".</p>
+                        </div>
+                    `;
+                }
+
+                resultsArea.innerHTML = resultsHtml;
+                appendOsLog(`[>] Parsed live search queries on DuckDuckGo engine: "${query.toUpperCase()}"`);
+
+            } catch (err) {
+                resultsArea.innerHTML = `<p class="text-xs text-red-500">// ERROR ESTABLISHING CONNECTION TO DUCKDUCKGO API FEED //</p>`;
+                appendOsLog(`[!] DuckDuckGo API network fallback error.`);
+            }
+        }
+
+        // MOCK NATIVE GOOGLE CLIENT WITH BUILT-IN CALCULATOR (SUPPORTS IN-OS LOADING LINKS)
+        function executeLiveGoogleSearch(forcedQuery = "") {
+            const input = document.getElementById("google-search-field");
+            let rawQuery = forcedQuery || (input ? input.value.trim() : "");
+            if (!rawQuery) return;
+
+            // Auto grammar corrector check
+            const correctedQuery = runGrammarShieldCorrector(rawQuery);
+            const query = correctedQuery.text;
+            if (input && correctedQuery.corrected) {
+                input.value = query;
+                appendOsLog(`[>] Autocorrected Google search spelling.`);
+            }
+
+            playRetroClick(700, 0.08, "triangle");
+            const resultsArea = document.getElementById("google-results-area");
+            if (!resultsArea) return;
+
+            appendOsLog(`[>] Running Google Local Proxy Search: ${query}`);
+
+            // Look for mathematical expressions in Google queries
+            const mathEval = evaluateArithmeticQuery(query);
+            if (mathEval.status || query.toLowerCase().includes("calculator") || query.toLowerCase().includes("calc")) {
+                resultsArea.innerHTML = `
+                    <div class="border border-amberGlow p-3 bg-amberDark/20 space-y-3">
+                        <div class="flex justify-between border-b border-amberDim/30 pb-1">
+                            <span class="font-bold text-[11px] uppercase tracking-wide text-amberGlow">// INTERACTIVE CALCULATOR CORE //</span>
+                            <span class="text-[9px] text-amberDim">STATUS_READY</span>
+                        </div>
+                        
+                        <!-- Mini beveled calculator interface -->
+                        <div class="max-w-[280px] mx-auto p-2 bg-[#1e1105] border-2 border-amberGlow">
+                            <!-- LCD Output Screen -->
+                            <div class="bg-black border border-amberDim p-2 text-right text-base font-bold text-amberGlow tracking-widest overflow-x-auto select-all mb-2 h-10 flex items-center justify-end" id="calc-display-panel">${mathEval.status ? mathEval.value : '0'}</div>
+                            
+                            <!-- Keypad -->
+                            <div class="grid grid-cols-4 gap-1 text-xs">
+                                <button onclick="clickCalcKey('C')" class="win36-button text-red-500 font-bold p-2">C</button>
+                                <button onclick="clickCalcKey('back')" class="win36-button font-bold p-2">&lt;</button>
+                                <button onclick="clickCalcKey('/')" class="win36-button font-bold p-2">/</button>
+                                <button onclick="clickCalcKey('*')" class="win36-button font-bold p-2">*</button>
+
+                                <button onclick="clickCalcKey('7')" class="win36-button font-bold p-2">7</button>
+                                <button onclick="clickCalcKey('8')" class="win36-button font-bold p-2">8</button>
+                                <button onclick="clickCalcKey('9')" class="win36-button font-bold p-2">9</button>
+                                <button onclick="clickCalcKey('-')" class="win36-button font-bold p-2">-</button>
+
+                                <button onclick="clickCalcKey('4')" class="win36-button font-bold p-2">4</button>
+                                <button onclick="clickCalcKey('5')" class="win36-button font-bold p-2">5</button>
+                                <button onclick="clickCalcKey('6')" class="win36-button font-bold p-2">6</button>
+                                <button onclick="clickCalcKey('+')" class="win36-button font-bold p-2">+</button>
+
+                                <button onclick="clickCalcKey('1')" class="win36-button font-bold p-2">1</button>
+                                <button onclick="clickCalcKey('2')" class="win36-button font-bold p-2">2</button>
+                                <button onclick="clickCalcKey('3')" class="win36-button font-bold p-2">3</button>
+                                <button onclick="clickCalcKey('=')" class="win36-button font-bold p-2 bg-amberGlow/20 row-span-2 h-full">=</button>
+
+                                <button onclick="clickCalcKey('0')" class="win36-button font-bold p-2 col-span-2">0</button>
+                                <button onclick="clickCalcKey('.')" class="win36-button font-bold p-2">.</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                // Initialize clean calculator state variables
+                window.calcCurrentVal = mathEval.status ? String(mathEval.value) : "0";
+                if (mathEval.status) {
+                    appendOsLog(`[>] Parsed direct math expression via Google search: ${mathEval.formula} = ${mathEval.value}`);
+                }
+            } else {
+                resultsArea.innerHTML = `
+                    <div class="space-y-3 text-left">
+                        <p class="text-amberDim text-[10px]">// TOP WEB DIRECTORY ALIGNMENTS //</p>
+                        <div class="border border-amberDim/30 p-2.5 bg-amberDark/10">
+                            <span class="font-bold text-amberGlow text-[11px] block">C.A.L.V.I.N. System Reference: ${query}</span>
+                            <p class="text-[10px] text-zinc-400 mt-1">Found matching index reference logs in the internal workstation matrix. Try talking to the "AI CONSULTANT" or querying "CALVIN Help".</p>
+                        </div>
+                        <div class="border border-amberDim/30 p-2.5 bg-amberDark/10">
+                            <span class="font-bold text-amberGlow text-[11px] block">Wikipedia Query search fallback</span>
+                            <p class="text-[10px] text-zinc-400 mt-1">CORS network search logs have identified Wikipedia databases for: "${query}".</p>
+                            <button onclick="navigateBrowserInline('https://en.wikipedia.org/wiki/${encodeURIComponent(query)}')" class="text-[9px] border border-amberGlow px-2.5 py-1 mt-2 hover:bg-amberGlow hover:text-black font-bold uppercase">[ RESOLVE VIA WIKIPEDIA IN-OS ]</button>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        // TRIGGER THE DYNAMIC CALCULATOR INTERACTIVE RENDER FROM DDG VIEW INLINE
+        function launchInteractiveCalculatorInline() {
+            const browserAddress = document.getElementById("win36-browser-address");
+            if (browserAddress) {
+                browserAddress.value = "https://www.google.com/search?q=calculator";
+                loadTargetIframeUrl();
+            }
+        }
+
+        // SECURE RETRO CALCULATOR BUTTON EVENT HANDLERS
+        function clickCalcKey(key) {
+            playRetroClick(600, 0.04, "sine");
+            const panel = document.getElementById("calc-display-panel");
+            if (!panel) return;
+
+            let current = window.calcCurrentVal || "0";
+
+            if (key === 'C') {
+                current = "0";
+            } else if (key === 'back') {
+                if (current.length > 1) {
+                    current = current.slice(0, -1);
+                } else {
+                    current = "0";
+                }
+            } else if (key === '=') {
+                try {
+                    let sanitized = current.replace(/[^0-9+\-*/.]/g, '');
+                    current = String(Function("\"use strict\"; return (" + sanitized + ")")());
+                } catch (e) {
+                    current = "ERROR";
+                    playErrorBeep();
+                }
+            } else {
+                if (current === "0" || current === "ERROR") {
+                    current = (['+', '*', '/'].includes(key)) ? "0" + key : key;
+                } else {
+                    current += key;
+                }
+            }
+
+            window.calcCurrentVal = current;
+            panel.textContent = current;
+        }
+
+        // BROWSER APP NAVIGATION CONTROLS
+        function loadTargetIframeUrl() {
+            const addrInput = document.getElementById("win36-browser-address");
+            let url = addrInput.value.trim();
+            if (!url) return;
+
+            // Run grammar auto correct over address parameters (checks for spelling typos)
+            const correctedUrl = runGrammarShieldCorrector(url);
+            url = correctedUrl.text;
+            addrInput.value = url;
+
+            if (!url.startsWith("http://") && !url.startsWith("https://")) {
+                url = "https://" + url;
+                addrInput.value = url;
+            }
+
+            playRetroClick(600, 0.05, "sine");
+            const alertBox = document.getElementById("win36-iframe-block-alert");
+            const wikiBox = document.getElementById("retro-wikipedia-viewer");
+            const ddgBox = document.getElementById("retro-duckduckgo-viewer");
+            const googleBox = document.getElementById("retro-google-viewer");
+            const iframe = document.getElementById("win36-browser-viewport");
+
+            if (alertBox) alertBox.classList.add("hidden");
+            if (wikiBox) wikiBox.classList.add("hidden");
+            if (ddgBox) ddgBox.classList.add("hidden");
+            if (googleBox) googleBox.classList.add("hidden");
+            if (iframe) iframe.classList.add("hidden");
+
+            // Look for Google searches in URLs like google.com/search?q=calculator
+            if (url.includes("google.com")) {
+                if (googleBox) googleBox.classList.remove("hidden");
+                appendOsLog(`[>] Intercepted Google gateway. Loading secure Local Proxy Search.`);
+                
+                let query = "";
+                try {
+                    const parsedUrl = new URL(url);
+                    query = parsedUrl.searchParams.get("q") || "";
+                } catch (e) {
+                    const match = url.match(/[?&]q=([^&]+)/);
+                    if (match) query = decodeURIComponent(match[1]);
+                }
+                
+                if (!query && url.toLowerCase().includes("calculator")) {
+                    query = "calculator";
+                } else if (!query) {
+                    query = "CALVIN OS";
+                }
+                
+                setTimeout(() => {
+                    executeLiveGoogleSearch(query);
+                }, 50);
+                return;
+            }
+
+            // Check if user is navigating to Wikipedia
+            if (url.includes("wikipedia.org")) {
+                if (wikiBox) wikiBox.classList.remove("hidden");
+                appendOsLog(`[>] Rendered native C.A.L.V.I.N. Retro Wikipedia Portal.`);
+                return;
+            }
+
+            // Check if user is navigating to DuckDuckGo
+            if (url.includes("duckduckgo.com")) {
+                if (ddgBox) ddgBox.classList.remove("hidden");
+                appendOsLog(`[>] Rendered native C.A.L.V.I.N. Retro DuckDuckGo Portal.`);
+                return;
+            }
+
+            // Otherwise, attempt standard iframe
+            if (iframe) {
+                iframe.src = url;
+                iframe.classList.remove("hidden");
+                appendOsLog(`[>] Loading Web Gate address link: ${url}`);
+                
+                const host = new URL(url).hostname;
+                const frameBlockers = ["google.com", "github.com", "openai.com", "youtube.com", "facebook.com", "twitter.com", "x.com"];
+                if (frameBlockers.some(blocker => host.includes(blocker))) {
+                    document.getElementById("blocked-frame-url-text").textContent = url;
+                    setTimeout(() => {
+                        if (alertBox) alertBox.classList.remove("hidden");
+                    }, 400);
+                }
+            }
+        }
+
+        function goHomeBrowser() {
+            const addr = document.getElementById("win36-browser-address");
+            if (addr) {
+                addr.value = "https://wikipedia.org";
+                loadTargetIframeUrl();
+            }
+        }
+
+        function bypassBrowserBlock() {
+            const addr = document.getElementById("win36-browser-address").value;
+            window.open(addr, "_blank");
+            appendOsLog(`[>] Triggered direct web bypass tab for: ${addr}`);
+        }
+
+        // EXPLORER FILE DIRECTORY WIDGETS
+        function renderExplorerAppGrid(parent) {
+            parent.innerHTML = `
+                <div class="flex justify-between items-center mb-3">
+                    <span class="text-[9px] text-amberDim">[+] PATH: C:/CALVIN_SYSTEM/</span>
+                    <button onclick="triggerExplorerNewFile()" class="win36-button text-amberGlow px-2 py-0.5 text-[9px] font-bold">[ CREATE FILE ]</button>
+                </div>
+                <div class="grid grid-cols-3 gap-2 flex-grow overflow-y-auto mb-2 pr-1" id="file-matrix-grid">
+                    <!-- File boxes are populated below -->
+                </div>
+                <!-- File editor panel -->
+                <div id="file-editor-box" class="hidden border-2 border-amberDim p-2.5 bg-amberDark/40 mt-2">
+                    <div class="flex justify-between mb-1.5"><span id="opened-filename" class="font-bold text-xs"></span><button onclick="closeFileExplorerEditor()" class="text-[9px] text-amberDim">[ CANCEL ]</button></div>
+                    <textarea id="opened-body-text" class="w-full h-24 bg-black border border-amberDim p-1 text-xs text-amberGlow focus:outline-none focus:border-amberGlow resize-none"></textarea>
+                    <div class="flex gap-2 justify-end mt-2">
+                        <button onclick="deleteExplorerFile()" class="border border-red-800 text-red-500 hover:bg-red-900 hover:text-white px-2 py-0.5 text-[9px]">[ DELETE ]</button>
+                        <button onclick="saveExplorerFile()" class="win36-button text-amberGlow px-3 py-0.5 font-bold text-[9px]">[ RE-WRITE ]</button>
+                    </div>
+                </div>
+                <!-- Create new file panel -->
+                <div id="file-create-box" class="hidden border-2 border-amberDim p-2.5 bg-amberDark/40 mt-2 space-y-2">
+                    <div>
+                        <label class="block text-[9px] text-amberDim">FILE NAME AND PATH</label>
+                        <input type="text" id="new-filename-input" placeholder="C/DOCS/NOTE.TXT" class="w-full bg-black border border-amberDim p-1 text-xs text-amberGlow focus:outline-none">
+                    </div>
+                    <div class="flex gap-2 justify-end">
+                        <button onclick="closeExplorerNewFile()" class="border border-amberDim px-2 py-0.5 text-[9px]">[ CANCEL ]</button>
+                        <button onclick="commitNewExplorerFile()" class="win36-button text-amberGlow px-3 py-0.5 font-bold text-[9px]">[ COMPILE ]</button>
+                    </div>
+                </div>
+            `;
+            populateExplorerFileListing();
+        }
+
+        function populateExplorerFileListing() {
+            const grid = document.getElementById("file-matrix-grid");
+            if (!grid) return;
+            grid.innerHTML = "";
+
+            currentDb.files.forEach((file) => {
+                const button = document.createElement("button");
+                button.className = "flex flex-col items-center justify-between border border-amberDim/30 bg-[#1e1105]/60 p-2.5 rounded-sm hover:bg-amberDim/20 text-center";
+                button.onclick = () => openFileInsideExplorer(file);
+
+                button.innerHTML = `
+                    <svg class="w-6 h-6 text-amberGlow/70 mb-1" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                    <span class="text-[8px] tracking-tighter truncate w-full uppercase font-mono">${file.path.split("/").pop()}</span>
+                `;
+                grid.appendChild(button);
+            });
+        }
+
+        let activelyEditingFile = null;
+
+        function openFileInsideExplorer(file) {
+            playRetroClick(580, 0.05, "sine");
+            activelyEditingFile = file;
+            document.getElementById("file-create-box").classList.add("hidden");
+            document.getElementById("file-editor-box").classList.remove("hidden");
+            document.getElementById("opened-filename").textContent = file.path;
+            document.getElementById("opened-body-text").value = file.body;
+        }
+
+        function closeFileExplorerEditor() {
+            document.getElementById("file-editor-box").classList.add("hidden");
+            activelyEditingFile = null;
+        }
+
+        function saveExplorerFile() {
+            if (!activelyEditingFile) return;
+            activelyEditingFile.body = document.getElementById("opened-body-text").value;
+            saveStorageData();
+            playAccessUnlockedSound();
+            closeFileExplorerEditor();
+            populateExplorerFileListing();
+            appendOsLog(`[>] Saved changes to memory: ${activelyEditingFile.path}`);
+        }
+
+        function deleteExplorerFile() {
+            if (!activelyEditingFile) return;
+            const idx = currentDb.files.findIndex(f => f.path === activelyEditingFile.path);
+            if (idx !== -1) {
+                currentDb.files.splice(idx, 1);
+                saveStorageData();
+                playRetroClick(350, 0.1, "sawtooth");
+                appendOsLog(`[-] Purged file record: ${activelyEditingFile.path}`);
+                closeFileExplorerEditor();
+                populateExplorerFileListing();
+            }
+        }
+
+        function triggerExplorerNewFile() {
+            document.getElementById("file-editor-box").classList.add("hidden");
+            document.getElementById("file-create-box").classList.remove("hidden");
+        }
+
+        function closeExplorerNewFile() {
+            document.getElementById("file-create-box").classList.add("hidden");
+        }
+
+        function commitNewExplorerFile() {
+            const filename = document.getElementById("new-filename-input").value.trim().toUpperCase();
+            if (!filename) return;
+
+            currentDb.files.push({
+                path: filename.includes("/") ? filename : `C/${filename}`,
+                body: `// COMPILED SYSTEM FILE: ${filename}\n`
+            });
+            saveStorageData();
+            playAccessUnlockedSound();
+            closeExplorerNewFile();
+            populateExplorerFileListing();
+            appendOsLog(`[>] Compiled new system file node: ${filename}`);
+        }
+
+        // FORCE NOTEPAD MEMORY SYNC
+        function forceSyncNotepadStorage() {
+            const textarea = document.getElementById("notepad-textarea-box");
+            if (textarea) {
+                localStorage.setItem("calvin_noted_data", textarea.value);
+                const syncLbl = document.getElementById("notepad-sync-lbl");
+                syncLbl.textContent = "RAM FLASH CORES WRITTEN";
+                syncLbl.className = "text-[9px] text-green-500 font-bold";
+                playAccessUnlockedSound();
+                setTimeout(() => {
+                    syncLbl.textContent = "Auto-cache system active";
+                    syncLbl.className = "text-[9px] text-amberDim";
+                }, 2000);
+            }
+        }
+
+        // DRAW DESIGN PAINT MODULE
+        function initializePaintDeviceCanvas() {
+            const cv = document.getElementById("paint-win36-cv");
+            if (!cv) return;
+            const ctx = cv.getContext("2d");
+
+            cv.width = cv.parentElement.clientWidth;
+            cv.height = 240;
+
+            let isDrawing = false;
+            cv.onmousedown = (e) => { isDrawing = true; draw(e); };
+            cv.onmousemove = (e) => draw(e);
+            cv.onmouseup = () => isDrawing = false;
+            cv.onmouseleave = () => isDrawing = false;
+
+            function draw(e) {
+                if (!isDrawing) return;
+                const rect = cv.getBoundingClientRect();
+                const x = (e.clientX - rect.left);
+                const y = (e.clientY - rect.top);
+
+                ctx.fillStyle = "#ff8800";
+                ctx.beginPath();
+                ctx.arc(x, y, 3, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            window.clearPaintScreenCanvas = () => {
+                ctx.clearRect(0, 0, cv.width, cv.height);
+            };
+        }
+
+        // CANVAS MATRIX FLUID SYSTEM
+        function startMatrixDigitalStream(canvas) {
+            const ctx = canvas.getContext("2d");
+            canvas.width = canvas.parentElement.clientWidth;
+            canvas.height = 280;
+
+            const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789".split("");
+            const fontSize = 10;
+            const columns = canvas.width / fontSize;
+
+            const rainDrops = [];
+            for (let x = 0; x < columns; x++) {
+                rainDrops[x] = 1;
+            }
+
+            function draw() {
+                ctx.fillStyle = "rgba(0, 0, 0, 0.05)";
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                ctx.fillStyle = "#ff8800";
+                ctx.font = fontSize + "px monospace";
+
+                for (let i = 0; i < rainDrops.length; i++) {
+                    const text = alphabet[Math.floor(Math.random() * alphabet.length)];
+                    ctx.fillText(text, i * fontSize, rainDrops[i] * fontSize);
+
+                    if (rainDrops[i] * fontSize > canvas.height && Math.random() > 0.975) {
+                        rainDrops[i] = 0;
+                    }
+                    rainDrops[i]++;
+                }
+            }
+
+            const mInterval = setInterval(() => {
+                if (!document.getElementById("win36-matrix")) {
+                    clearInterval(mInterval);
+                    return;
+                }
+                draw();
+            }, 40);
+        }
+
+        // ================= RETRO POLISHED SETTINGS SYSTEM =================
+        function launchSettingsApp() {
+            launchCustomWindow("C.A.L.V.I.N. Calibration Suite", "settings-calvin");
+            setTimeout(() => {
+                setupSettingsAppTabs();
+            }, 100);
+        }
+
+        function setupSettingsAppTabs() {
+            const win = document.getElementById("win36-settings-calvin");
+            if (!win) return;
+            const body = win.querySelector("div:nth-child(2)");
+            
+            body.innerHTML = `
+                <div class="flex flex-col h-full space-y-4">
+                    <!-- Retro Tabs Header -->
+                    <div class="flex border-b border-amberDim/50 text-[9px] font-bold">
+                        <button onclick="switchSettingsTab('general')" id="tab-btn-general" class="px-2.5 py-1.5 border border-amberDim/50 border-b-transparent settings-tab-active uppercase">General</button>
+                        <button onclick="switchSettingsTab('slots')" id="tab-btn-slots" class="px-2.5 py-1.5 border border-amberDim/50 border-b-transparent uppercase">Grid Slots</button>
+                        <button onclick="switchSettingsTab('macros')" id="tab-btn-macros" class="px-2.5 py-1.5 border border-amberDim/50 border-b-transparent uppercase">Macros</button>
+                        <button onclick="switchSettingsTab('security')" id="tab-btn-security" class="px-2.5 py-1.5 border border-amberDim/50 border-b-transparent uppercase">Passcode</button>
+                    </div>
+
+                    <!-- Dynamic Tab Body Content Frame -->
+                    <div id="settings-tab-viewport" class="flex-1 win36-bevel-in p-4 overflow-y-auto">
+                        <!-- Filled dynamically by tab switcher -->
+                    </div>
+
+                    <!-- Footer Action bar -->
+                    <div class="flex justify-end gap-3 pt-2">
+                        <button onclick="restoreOSFactorySettings()" class="border border-red-800 text-red-500 hover:bg-red-950/20 px-3 py-1.5 text-[9px] uppercase font-bold">[ RESTORE DEFAULT ]</button>
+                        <button onclick="commitCalibrationSuite()" class="win36-button text-amberGlow px-5 py-1.5 text-[9px] uppercase font-bold">[ SAVE SYSTEM CHANGES ]</button>
+                    </div>
+                </div>
+            `;
+            switchSettingsTab("general");
+        }
+
+        function switchSettingsTab(tabName) {
+            playRetroClick(550, 0.04, "sine");
+            
+            // Manage Active Highlight Class
+            document.querySelectorAll("[id^='tab-btn-']").forEach(btn => {
+                btn.classList.remove("settings-tab-active");
+            });
+            document.getElementById(`tab-btn-${tabName}`).classList.add("settings-tab-active");
+
+            const viewport = document.getElementById("settings-tab-viewport");
+            if (!viewport) return;
+
+            if (tabName === "general") {
+                viewport.innerHTML = `
+                    <div class="space-y-4 text-xs">
+                        <div class="border-b border-amberDim/30 pb-1"><span class="font-bold text-amberDim uppercase">// SYSTEM AESTHETICS</span></div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-[9px] text-amberDim mb-1">MAIN SYSTEM TITLE</label>
+                                <input type="text" id="cfg-sys-title-val" value="${currentDb.metadata.sysTitle}" class="w-full bg-black border border-amberDim p-1 text-amberGlow focus:outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-[9px] text-amberDim mb-1">CRT MONITOR NOISE</label>
+                                <select id="cfg-crt-select" class="w-full bg-black border border-amberDim p-1 text-amberGlow focus:outline-none">
+                                    <option value="on" ${currentDb.metadata.crtActive === "on" ? "selected" : ""}>ACTIVE SHADER</option>
+                                    <option value="off" ${currentDb.metadata.crtActive === "off" ? "selected" : ""}>OFFLINE</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="border-b border-amberDim/30 pb-1.5 pt-2"><span class="font-bold text-amberDim uppercase">// CONSOLE EXECUTION ROUTE</span></div>
+                        <div>
+                            <label class="block text-[9px] text-amberDim mb-1">DOCK SEARCH BAR BEHAVIOR</label>
+                            <select id="cfg-search-mode-val" class="w-full bg-black border border-amberDim p-1 text-amberGlow focus:outline-none">
+                                <option value="local" ${currentDb.metadata.searchAction === "local" ? "selected" : ""}>INTERCEPT COMMAND TO LOCAL CHAT AI</option>
+                                <option value="direct" ${currentDb.metadata.searchAction === "direct" ? "selected" : ""}>LOAD QUERY IN WEB GATE FRAME DIRECTLY</option>
+                            </select>
+                        </div>
+
+                        <div class="border-b border-amberDim/30 pb-1.5 pt-2"><span class="font-bold text-amberDim uppercase">// C.A.L.V.I.N. GRAMMAR SHIELD</span></div>
+                        <div>
+                            <label class="block text-[9px] text-amberDim mb-1">ACTIVE SPELLING AND SYNTAX AUTO-REPAIR</label>
+                            <select id="cfg-grammar-shield-val" class="w-full bg-black border border-amberDim p-1 text-amberGlow focus:outline-none">
+                                <option value="on" ${currentDb.metadata.grammarShieldActive === "on" ? "selected" : ""}>SPELLING CORRECTION ON</option>
+                                <option value="off" ${currentDb.metadata.grammarShieldActive === "off" ? "selected" : ""}>SPELLING CORRECTION OFF</option>
+                            </select>
+                        </div>
+                    </div>
+                `;
+            } else if (tabName === "slots") {
+                viewport.innerHTML = `
+                    <div class="space-y-4 text-xs">
+                        <div class="border-b border-amberDim/30 pb-1"><span class="font-bold text-amberDim uppercase">// COMPILE DESKTOP CHANNELS</span></div>
+                        <div class="p-3 bg-black/40 border border-amberDim/30 space-y-3">
+                            <div>
+                                <label class="block text-[9px] text-amberDim mb-1">SELECT TARGET MATRIX SLOT</label>
+                                <select id="cfg-app-id-picker" onchange="syncSettingsSlotPickerChange()" class="w-full bg-black border border-amberDim p-1 text-amberGlow focus:outline-none">
+                                    ${currentDb.apps.map(app => `<option value="${app.id}">Slot ${String(app.id).padStart(2, '0')} - [${app.label}]</option>`).join("")}
+                                </select>
+                            </div>
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block text-[9px] text-amberDim">DISPLAY LABEL</label>
+                                    <input type="text" id="cfg-app-label-val" class="w-full bg-black border border-amberDim p-1 text-amberGlow focus:outline-none">
+                                </div>
+                                <div>
+                                    <label class="block text-[9px] text-amberDim">SLOT EXECUTED TARGET</label>
+                                    <select id="cfg-app-action-val" class="w-full bg-black border border-amberDim p-1 text-amberGlow focus:outline-none">
+                                        <option value="chat">Local Chat AI Dialog</option>
+                                        <option value="explorer">File Directory Manager</option>
+                                        <option value="notepad">Memo Notes Notepad</option>
+                                        <option value="matrix">Matrix Data Streamer</option>
+                                        <option value="synth">Web Audio Synthesizer</option>
+                                        <option value="paint">Vector Paint Canvas</option>
+                                        <option value="diagnostics">Host Telemetry Systems</option>
+                                        <option value="browser">Web Gate Browser Frame</option>
+                                        <option value="grammar">Grammar Shield Sensor</option>
+                                        <option value="disabled">Locked Inactive Slot</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                syncSettingsSlotPickerChange();
+            } else if (tabName === "macros") {
+                viewport.innerHTML = `
+                    <div class="space-y-3 text-xs">
+                        <div class="border-b border-amberDim/30 pb-1"><span class="font-bold text-amberDim uppercase">// QUICK MARGIN LOG OVERRIDES</span></div>
+                        <div class="space-y-2">
+                            <div>
+                                <label class="block text-[9px] text-amberDim mb-0.5">P1 SHUTTLE LABEL & ADDRESS</label>
+                                <div class="flex gap-2">
+                                    <input type="text" id="cfg-ql-p-lbl" value="${currentDb.quickLinks.purple.label}" class="w-20 bg-black border border-amberDim p-1 text-amberGlow">
+                                    <input type="text" id="cfg-ql-p-path" value="${currentDb.quickLinks.purple.path}" class="flex-1 bg-black border border-amberDim p-1 text-amberGlow">
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-[9px] text-amberDim mb-0.5">W2 SHUTTLE LABEL & ADDRESS</label>
+                                <div class="flex gap-2">
+                                    <input type="text" id="cfg-ql-w-lbl" value="${currentDb.quickLinks.white.label}" class="w-20 bg-black border border-amberDim p-1 text-amberGlow">
+                                    <input type="text" id="cfg-ql-w-path" value="${currentDb.quickLinks.white.path}" class="flex-1 bg-black border border-amberDim p-1 text-amberGlow">
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-[9px] text-amberDim mb-0.5">R3 SHUTTLE LABEL & ADDRESS</label>
+                                <div class="flex gap-2">
+                                    <input type="text" id="cfg-ql-r-lbl" value="${currentDb.quickLinks.red.label}" class="w-20 bg-black border border-amberDim p-1 text-amberGlow">
+                                    <input type="text" id="cfg-ql-r-path" value="${currentDb.quickLinks.red.path}" class="flex-1 bg-black border border-amberDim p-1 text-amberGlow">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            } else if (tabName === "security") {
+                viewport.innerHTML = `
+                    <div class="space-y-4 text-xs">
+                        <div class="border-b border-amberDim/30 pb-1"><span class="font-bold text-amberDim uppercase">// SYSTEM LOGIN ACCESS KEY</span></div>
+                        <div class="p-3 bg-black/40 border border-amberDim/35 space-y-3">
+                            <p class="text-[10px] text-amberDim">Set a customized encryption passcode to unlock C.A.L.V.I.N. OS upon system restart or manual lockout.</p>
+                            <div>
+                                <label class="block text-[9px] text-amberDim mb-1">ENTER NEW MASTER PASSWORD</label>
+                                <input type="text" id="cfg-lock-pass-val" value="${currentDb.metadata.lockPasscode}" class="w-full bg-black border border-amberDim p-1 text-amberGlow uppercase tracking-widest focus:outline-none">
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        function syncSettingsSlotPickerChange() {
+            const picker = document.getElementById("cfg-app-id-picker");
+            if (!picker) return;
+            const selectId = parseInt(picker.value);
+            const app = currentDb.apps.find(a => a.id === selectId);
+            if (app) {
+                document.getElementById("cfg-app-label-val").value = app.label;
+                document.getElementById("cfg-app-action-val").value = app.action;
+            }
+        }
+
+        // SAVE CONFIGURATION CHANGES
+        function commitCalibrationSuite() {
+            playAccessUnlockedSound();
+
+            // Save elements that may exist depending on active tabs
+            const titleInput = document.getElementById("cfg-sys-title-val");
+            if (titleInput) currentDb.metadata.sysTitle = titleInput.value;
+
+            const crtSelect = document.getElementById("cfg-crt-select");
+            if (crtSelect) currentDb.metadata.crtActive = crtSelect.value;
+
+            const searchSelect = document.getElementById("cfg-search-mode-val");
+            if (searchSelect) currentDb.metadata.searchAction = searchSelect.value;
+
+            const grammarSelect = document.getElementById("cfg-grammar-shield-val");
+            if (grammarSelect) currentDb.metadata.grammarShieldActive = grammarSelect.value;
+
+            // Password change
+            const passInput = document.getElementById("cfg-lock-pass-val");
+            if (passInput) currentDb.metadata.lockPasscode = passInput.value.trim().toUpperCase();
+
+            // Macros links change
+            const qlPLbl = document.getElementById("cfg-ql-p-lbl");
+            if (qlPLbl) {
+                currentDb.quickLinks.purple.label = qlPLbl.value;
+                currentDb.quickLinks.purple.path = document.getElementById("cfg-ql-p-path").value;
+                currentDb.quickLinks.white.label = document.getElementById("cfg-ql-w-lbl").value;
+                currentDb.quickLinks.white.path = document.getElementById("cfg-ql-w-path").value;
+                currentDb.quickLinks.red.label = document.getElementById("cfg-ql-r-lbl").value;
+                currentDb.quickLinks.red.path = document.getElementById("cfg-ql-r-path").value;
+            }
+
+            // Target Active App change
+            const picker = document.getElementById("cfg-app-id-picker");
+            if (picker) {
+                const selectId = parseInt(picker.value);
+                const app = currentDb.apps.find(a => a.id === selectId);
+                if (app) {
+                    app.label = document.getElementById("cfg-app-label-val").value;
+                    app.action = document.getElementById("cfg-app-action-val").value;
+                }
+            }
+
+            saveStorageData();
+            closeCustomWindow("settings-calvin");
+            appendOsLog("[>] Applied and compiled all configuration adjustments successfully.");
+        }
+
+        function restoreOSFactorySettings() {
+            if (confirm("Reset layout nodes and system database records back to defaults?")) {
+                currentDb = JSON.parse(JSON.stringify(FACTORY_DATABASE));
+                saveStorageData();
+                closeCustomWindow("settings-calvin");
+                appendOsLog("[>] Reverted workstation partition to factory standard parameters.");
+            }
+        }
+
+        // AUTO START BOOT LOADER
+        window.onload = function() {
+            loadStorageData();
+        }
+    </script>
+</body>
+</html>
